@@ -96,6 +96,11 @@ template <typename T> struct has_adl_to_json<T, std::void_t<decltype(to_json(std
 
 template <typename> inline constexpr bool not_dumpable = false;
 
+// hooks letting the runtime document type (load.hpp) plug into the
+// encoder without this header depending on it
+template <typename T> struct is_runtime_document: std::false_type { };
+template <typename T> struct runtime_document_writer;
+
 // --- shortest round-tripping float formatting (Dragon4)
 //
 // Exact big-integer arithmetic over the scaled value and its half-ulp
@@ -631,6 +636,8 @@ struct dumper {
 		using D = std::remove_cv_t<std::remove_reference_t<T>>;
 		if constexpr (has_adl_to_json<D>::value) {
 			value(to_json(v), depth);
+		} else if constexpr (is_runtime_document<D>::value) {
+			runtime_document_writer<D>::write(*this, v, depth);
 		} else if constexpr (is_document<D>::value) {
 			document(v, depth);
 		} else if constexpr (std::is_same_v<D, std::nullptr_t>) {

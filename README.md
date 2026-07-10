@@ -135,6 +135,30 @@ constexpr auto doc = ctjson::parse<text>();
 static_assert(doc.template get<n_key>().template to<int>() == 42);
 ```
 
+## Runtime parsing
+
+`ctjson::loads(text)` and `ctjson::load(stream)` are `json.loads`/`json.load`
+for strings that only exist at runtime. They return
+`std::optional<ctjson::value>` — a dynamic document mirroring the
+compile-time accessors — with `std::nullopt` (plus a byte offset through
+the `load_error` overloads) on malformed input; the library stays
+exception free:
+
+```c++
+if (auto doc = ctjson::loads(request_body)) {
+    (*doc)["users"][0]["name"].view();   // chains are null-safe
+    (*doc)["retries"].to<int>();
+    ctjson::dumps(*doc, 2);              // the encoder accepts values
+}
+```
+
+Numbers keep Python's int/float distinction (`is_integer()`), `NaN` and
+the infinities parse like Python's `parse_constant`, and missing lookups
+follow the null-object pattern (`find`/`contains` distinguish absent
+from null). Documented divergences from Python: integers beyond
+`long long` become doubles, duplicate keys are all kept (first wins,
+like the compile-time parser), and lone `\u` surrogates are rejected.
+
 ## How it works
 
 The same architecture as CTRE: an RFC 8259 grammar

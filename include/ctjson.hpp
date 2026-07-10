@@ -7,6 +7,7 @@
 #include "ctjson/actions.hpp"
 #include "ctjson/serialize.hpp"
 #include "ctjson/dumps.hpp"
+#include "ctjson/load.hpp"
 
 // ctjson: compile-time JSON.
 //

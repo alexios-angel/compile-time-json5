@@ -5,7 +5,7 @@ file(GLOB test-sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 # tests with a main() run; the rest are static_assert suites where
 # compiling is the test
-set(runtime-tests dumps)
+set(runtime-tests dumps load)
 
 foreach(source ${test-sources})
   get_filename_component(test "${source}" NAME_WE)
