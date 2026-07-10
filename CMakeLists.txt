@@ -14,8 +14,8 @@ if(NOT CMAKE_EXPERIMENTAL_CXX_STD AND NOT CMAKE_CXX_MODULE_STD)
     endif()
 endif()
 
-project(ctjson
-  HOMEPAGE_URL "https://github.com/alexios-angel/compile-time-json"
+project(ctjson5
+  HOMEPAGE_URL "https://github.com/alexios-angel/compile-time-json5"
   VERSION 0.1.0
   LANGUAGES CXX)
 set(PROJECT_DESCRIPTION "Compile-time JSON: parse while you compile, query with constexpr accessors.")
@@ -25,31 +25,31 @@ include(CMakeDependentOption)
 include(GNUInstallDirs)
 include(CTest)
 
-find_program(CTJSON_DPKG_BUILDPACKAGE_FOUND dpkg-buildpackage)
-find_program(CTJSON_RPMBUILD_FOUND rpmbuild)
+find_program(CTJSON5_DPKG_BUILDPACKAGE_FOUND dpkg-buildpackage)
+find_program(CTJSON5_RPMBUILD_FOUND rpmbuild)
 
-cmake_dependent_option(CTJSON_BUILD_TESTS "Build ctjson tests" ON
+cmake_dependent_option(CTJSON5_BUILD_TESTS "Build ctjson5 tests" ON
   "BUILD_TESTING;CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
-cmake_dependent_option(CTJSON_BUILD_EXAMPLES "Build ctjson examples" ON
+cmake_dependent_option(CTJSON5_BUILD_EXAMPLES "Build ctjson5 examples" ON
   "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
-cmake_dependent_option(CTJSON_BUILD_PACKAGE "Build ctjson packages" ON
+cmake_dependent_option(CTJSON5_BUILD_PACKAGE "Build ctjson5 packages" ON
   "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
-cmake_dependent_option(CTJSON_BUILD_PACKAGE_DEB
+cmake_dependent_option(CTJSON5_BUILD_PACKAGE_DEB
   "Create DEB package (${PROJECT_NAME})" ON
-  "CTJSON_BUILD_PACKAGE;CTJSON_DPKG_BUILDPACKAGE_FOUND" OFF)
-cmake_dependent_option(CTJSON_BUILD_PACKAGE_RPM
+  "CTJSON5_BUILD_PACKAGE;CTJSON5_DPKG_BUILDPACKAGE_FOUND" OFF)
+cmake_dependent_option(CTJSON5_BUILD_PACKAGE_RPM
   "Create RPM package (${PROJECT_NAME})" ON
-  "CTJSON_BUILD_PACKAGE;CTJSON_RPMBUILD_FOUND" OFF)
+  "CTJSON5_BUILD_PACKAGE;CTJSON5_RPMBUILD_FOUND" OFF)
 
-option(CTJSON_MODULE "build C++ module (experimental)" OFF)
+option(CTJSON5_MODULE "build C++ module (experimental)" OFF)
 
-set(CTJSON_HEADERS
-	include/ctjson.hpp
-	include/ctjson/actions.hpp
-	include/ctjson/json.hpp
-	include/ctjson/load.hpp
-	include/ctjson/serialize.hpp
-	include/ctjson/types.hpp
+set(CTJSON5_HEADERS
+	include/ctjson5.hpp
+	include/ctjson5/actions.hpp
+	include/ctjson5/json5.hpp
+	include/ctjson5/load.hpp
+	include/ctjson5/serialize.hpp
+	include/ctjson5/types.hpp
 	include/ctll.hpp
 	include/ctll/actions.hpp
 	include/ctll/fixed_string.hpp
@@ -58,21 +58,21 @@ set(CTJSON_HEADERS
 	include/ctll/parser.hpp
 	include/ctll/utilities.hpp)
 
-if(CTJSON_MODULE)
+if(CTJSON5_MODULE)
 	if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.29.20240416")
 		add_library(${PROJECT_NAME})
 
-		target_sources(${PROJECT_NAME} PUBLIC FILE_SET CXX_MODULES TYPE CXX_MODULES FILES ctjson.cppm)
+		target_sources(${PROJECT_NAME} PUBLIC FILE_SET CXX_MODULES TYPE CXX_MODULES FILES ctjson5.cppm)
 		target_sources(${PROJECT_NAME} PUBLIC FILE_SET HEADERS TYPE HEADERS
 		    BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include"
-		    FILES ${CTJSON_HEADERS})
+		    FILES ${CTJSON5_HEADERS})
 
 		# we are using `import std;`
-		if (NOT DEFINED CTJSON_CXX_STANDARD OR CTJSON_CXX_STANDARD LESS 23)
-			set(CTJSON_CXX_STANDARD 23)
+		if (NOT DEFINED CTJSON5_CXX_STANDARD OR CTJSON5_CXX_STANDARD LESS 23)
+			set(CTJSON5_CXX_STANDARD 23)
 		endif()
 
-		target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_${CTJSON_CXX_STANDARD})
+		target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_${CTJSON5_CXX_STANDARD})
 
 		install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}-targets
 			FILE_SET CXX_MODULES DESTINATION "${CMAKE_INSTALL_LIBDIR}/cxx/${PROJECT_NAME}"
@@ -87,11 +87,11 @@ else()
 	  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
 	  $<INSTALL_INTERFACE:include>)
 
-	if (NOT CTJSON_CXX_STANDARD)
-	  set(CTJSON_CXX_STANDARD 20)
+	if (NOT CTJSON5_CXX_STANDARD)
+	  set(CTJSON5_CXX_STANDARD 20)
 	endif()
 
-	target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_${CTJSON_CXX_STANDARD})
+	target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_${CTJSON5_CXX_STANDARD})
 	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_SCAN_FOR_MODULES 0)
 
 	install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}-targets)
@@ -115,7 +115,7 @@ configure_package_config_file(
   NO_SET_AND_CHECK_MACRO
   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
-write_basic_package_version_file(ctjson-config-version.cmake
+write_basic_package_version_file(ctjson5-config-version.cmake
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY SameMajorVersion)
 
@@ -128,25 +128,25 @@ install(
     "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
-if(CTJSON_BUILD_TESTS)
+if(CTJSON5_BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
-if(CTJSON_BUILD_EXAMPLES)
+if(CTJSON5_BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
 
-if (NOT CTJSON_BUILD_PACKAGE)
+if (NOT CTJSON5_BUILD_PACKAGE)
   return()
 endif()
 
 list(APPEND source-generators TBZ2 TGZ TXZ ZIP)
 
-if (CTJSON_BUILD_PACKAGE_DEB)
+if (CTJSON5_BUILD_PACKAGE_DEB)
   list(APPEND binary-generators "DEB")
 endif()
 
-if (CTJSON_BUILD_PACKAGE_RPM)
+if (CTJSON5_BUILD_PACKAGE_RPM)
   list(APPEND binary-generators "RPM")
 endif()
 

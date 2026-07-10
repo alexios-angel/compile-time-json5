@@ -1,9 +1,10 @@
-#ifndef CTJSON__TYPES__HPP
-#define CTJSON__TYPES__HPP
+#ifndef CTJSON5__TYPES__HPP
+#define CTJSON5__TYPES__HPP
 
 #include "../ctll/fixed_string.hpp"
-#ifndef CTJSON_IN_A_MODULE
+#ifndef CTJSON5_IN_A_MODULE
 #include <cstddef>
+#include <limits>
 #include <string_view>
 #include <type_traits>
 #endif
@@ -17,7 +18,7 @@
 // surrogate pairs, are decoded during parsing); numbers keep their raw
 // spelling and convert on demand.
 
-namespace ctjson {
+namespace ctjson5 {
 
 CTLL_EXPORT enum class kind {
 	object,
@@ -79,19 +80,69 @@ CTLL_EXPORT template <auto... Chars> struct number {
 		return std::string_view{storage, sizeof...(Chars)};
 	}
 
+	static constexpr bool is_hexadecimal() noexcept {
+		constexpr std::string_view text{storage, sizeof...(Chars)};
+		const size_t start = (!text.empty() && (text[0] == '-' || text[0] == '+')) ? 1 : 0;
+		return text.size() >= start + 2 && text[start] == '0' && (text[start + 1] == 'x' || text[start + 1] == 'X');
+	}
+
+	static constexpr bool is_finite() noexcept {
+		// Infinity and NaN are spelled with letters no other form uses
+		return ((Chars != 'I' && Chars != 'N') && ...);
+	}
+
 	static constexpr bool is_integer() noexcept {
+		if (!is_finite()) {
+			return false;
+		}
+		if (is_hexadecimal()) {
+			return true;
+		}
 		return ((Chars != '.' && Chars != 'e' && Chars != 'E') && ...);
 	}
 
 	template <typename T> static constexpr T to() noexcept {
 		constexpr std::string_view text = view();
 		size_t i = 0;
-		const bool negative = text[0] == '-';
-		if (negative) {
+		bool negative = false;
+		if (text[0] == '-' || text[0] == '+') {
+			negative = text[0] == '-';
 			++i;
 		}
+		// the JSON5 non-finite literals
+		if (i < text.size() && text[i] == 'I') {
+			if constexpr (std::is_integral_v<T>) {
+				return T{}; // no integral infinity; converting would be UB
+			} else {
+				return negative ? -std::numeric_limits<T>::infinity() : std::numeric_limits<T>::infinity();
+			}
+		}
+		if (i < text.size() && text[i] == 'N') {
+			if constexpr (std::is_integral_v<T>) {
+				return T{};
+			} else {
+				return std::numeric_limits<T>::quiet_NaN();
+			}
+		}
+		// hexadecimal (JSON5): 0x / 0X followed by hex digits
+		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'X')) {
+			unsigned long long magnitude = 0;
+			for (i += 2; i < text.size(); ++i) {
+				const char c = text[i];
+				const auto digit = static_cast<unsigned long long>(
+					c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c - 'A' + 10);
+				magnitude = magnitude * 16 + digit;
+			}
+			if constexpr (std::is_integral_v<T>) {
+				const auto value = static_cast<long long>(magnitude);
+				return static_cast<T>(negative ? -value : value);
+			} else {
+				const auto value = static_cast<long double>(magnitude);
+				return static_cast<T>(negative ? -value : value);
+			}
+		}
 		// mantissa: integer digits, then fraction digits shifting the
-		// decimal exponent down
+		// decimal exponent down (a leading or trailing point is fine)
 		unsigned long long mantissa = 0;
 		int exponent10 = 0;
 		for (; i < text.size() && text[i] >= '0' && text[i] <= '9'; ++i) {
@@ -167,7 +218,7 @@ CTLL_EXPORT template <typename... Values> struct array {
 	}
 
 	template <size_t Index> static constexpr auto get() noexcept {
-		static_assert(Index < sizeof...(Values), "ctjson: array index out of range");
+		static_assert(Index < sizeof...(Values), "ctjson5: array index out of range");
 		return nth<Index, Values...>();
 	}
 
@@ -206,7 +257,7 @@ CTLL_EXPORT template <typename... Members> struct object {
 	// the value of the member with this key; a missing key is a
 	// compile-time error (check contains<Name>() first when unsure)
 	template <ctll::fixed_string Name> static constexpr auto get() noexcept {
-		static_assert((key_matches<Name, Members>() || ...), "ctjson: no member with this key");
+		static_assert((key_matches<Name, Members>() || ...), "ctjson5: no member with this key");
 		return find<Name, Members...>();
 	}
 #else
@@ -215,18 +266,18 @@ CTLL_EXPORT template <typename... Members> struct object {
 		return (key_matches<Name, Members>() || ...);
 	}
 	template <const auto & Name> static constexpr auto get() noexcept {
-		static_assert((key_matches<Name, Members>() || ...), "ctjson: no member with this key");
+		static_assert((key_matches<Name, Members>() || ...), "ctjson5: no member with this key");
 		return find<Name, Members...>();
 	}
 #endif
 
 	// positional access, for iterating members
 	template <size_t Index> static constexpr auto key() noexcept {
-		static_assert(Index < sizeof...(Members), "ctjson: member index out of range");
+		static_assert(Index < sizeof...(Members), "ctjson5: member index out of range");
 		return typename decltype(nth<Index, Members...>())::key_type{};
 	}
 	template <size_t Index> static constexpr auto value() noexcept {
-		static_assert(Index < sizeof...(Members), "ctjson: member index out of range");
+		static_assert(Index < sizeof...(Members), "ctjson5: member index out of range");
 		return typename decltype(nth<Index, Members...>())::value_type{};
 	}
 
@@ -279,6 +330,6 @@ CTLL_EXPORT template <typename F, typename... Members> constexpr void for_each(o
 	(f(typename Members::key_type{}, typename Members::value_type{}), ...);
 }
 
-} // namespace ctjson
+} // namespace ctjson5
 
 #endif

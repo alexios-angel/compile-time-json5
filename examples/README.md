@@ -9,7 +9,7 @@ also build and run as tests through CMake/CTest.
 | [`config.cpp`](config.cpp) | a configuration baked into the binary: compile-time requirement checks, values as array sizes, zero-cost runtime reads |
 | [`validation.cpp`](validation.cpp) | `is_valid` as a bool, strict RFC 8259 rejections, schema-style shape asserts with `kind` |
 | [`introspection.cpp`](introspection.cpp) | a generic recursive visitor over any document: positional iteration, kind dispatch, re-serialization |
-| [`serialize.cpp`](serialize.cpp) | `ctjson::serialize` — canonical minified output, escape re-emission, fixed-point round-trip |
+| [`serialize.cpp`](serialize.cpp) | `ctjson5::serialize` — canonical minified output, escape re-emission, fixed-point round-trip |
 | [`tables.cpp`](tables.cpp) | JSON as a data table: an array of objects turned into a constexpr `std::array` of structs, queried at compile time |
 | [`localization.cpp`](localization.cpp) | a message catalog with compile-time fallback via `contains<>` and `if constexpr`, iterated with `for_each` |
 | [`python-style.cpp`](python-style.cpp) | the runtime encoder: `dumps`/`dump` on native C++ values, indent and sort_keys, the `to_json` hook |

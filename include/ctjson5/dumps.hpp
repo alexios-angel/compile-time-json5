@@ -1,8 +1,8 @@
-#ifndef CTJSON__DUMPS__HPP
-#define CTJSON__DUMPS__HPP
+#ifndef CTJSON5__DUMPS__HPP
+#define CTJSON5__DUMPS__HPP
 
 #include "types.hpp"
-#ifndef CTJSON_IN_A_MODULE
+#ifndef CTJSON5_IN_A_MODULE
 #include <algorithm>
 #include <cstring>
 #include <optional>
@@ -21,11 +21,11 @@
 
 // A runtime encoder in the style of Python's json module:
 //
-//   ctjson::dumps(std::map<std::string, std::vector<int>>{{"a", {1, 2}}})
+//   ctjson5::dumps(std::map<std::string, std::vector<int>>{{"a", {1, 2}}})
 //       == R"({"a": [1, 2]})"                       // Python's separators
-//   ctjson::dumps(value, 2)                          // indent=2 pretty print
-//   ctjson::dumps(value, {.indent=2, .sort_keys=true, .ensure_ascii=true})
-//   ctjson::dump(value, stream, ...)                 // like json.dump
+//   ctjson5::dumps(value, 2)                          // indent=2 pretty print
+//   ctjson5::dumps(value, {.indent=2, .sort_keys=true, .ensure_ascii=true})
+//   ctjson5::dump(value, stream, ...)                 // like json.dump
 //
 // What Python's encoder accepts maps to C++ like this:
 //
@@ -35,7 +35,7 @@
 //   str   -> std::string, std::string_view, const char *, char
 //   int   -> integral types        float -> floating point types
 //   None  -> nullptr, an empty std::optional
-//   plus: std::variant (the active alternative), the ctjson document
+//   plus: std::variant (the active alternative), the ctjson5 document
 //   types themselves (numbers keep their parsed spelling), and any type
 //   with an ADL-findable to_json(value) returning something dumpable -
 //   the equivalent of Python's default= hook.
@@ -58,12 +58,12 @@
 // standard library's constexpr string/vector support exists (C++20)
 #if defined(__cpp_lib_constexpr_string) && __cpp_lib_constexpr_string >= 201907L \
  && defined(__cpp_lib_constexpr_vector) && __cpp_lib_constexpr_vector >= 201907L
-#define CTJSON_DUMPS_CONSTEXPR constexpr
+#define CTJSON5_DUMPS_CONSTEXPR constexpr
 #else
-#define CTJSON_DUMPS_CONSTEXPR
+#define CTJSON5_DUMPS_CONSTEXPR
 #endif
 
-namespace ctjson {
+namespace ctjson5 {
 
 CTLL_EXPORT struct dump_options {
 	int indent = -1;          // negative: one line with ", " separators
@@ -360,14 +360,14 @@ struct dumper {
 	std::string out;
 	dump_options options;
 
-	CTJSON_DUMPS_CONSTEXPR bool pretty() const noexcept {
+	CTJSON5_DUMPS_CONSTEXPR bool pretty() const noexcept {
 		return options.indent >= 0;
 	}
-	CTJSON_DUMPS_CONSTEXPR void newline(int depth) {
+	CTJSON5_DUMPS_CONSTEXPR void newline(int depth) {
 		out += '\n';
 		out.append(static_cast<size_t>(options.indent) * static_cast<size_t>(depth), ' ');
 	}
-	CTJSON_DUMPS_CONSTEXPR void item_separator(int depth) {
+	CTJSON5_DUMPS_CONSTEXPR void item_separator(int depth) {
 		if (pretty()) {
 			out += ',';
 			newline(depth);
@@ -378,13 +378,13 @@ struct dumper {
 
 	// --- strings
 
-	CTJSON_DUMPS_CONSTEXPR void escape_unit(char32_t code_point) {
+	CTJSON5_DUMPS_CONSTEXPR void escape_unit(char32_t code_point) {
 		constexpr char hex[] = "0123456789abcdef";
 		const char buffer[7]{'\\', 'u', hex[(code_point >> 12) & 0xF], hex[(code_point >> 8) & 0xF], hex[(code_point >> 4) & 0xF], hex[code_point & 0xF], 0};
 		out.append(buffer, 6);
 	}
 
-	CTJSON_DUMPS_CONSTEXPR void write_string(std::string_view text) {
+	CTJSON5_DUMPS_CONSTEXPR void write_string(std::string_view text) {
 		out += '"';
 		for (size_t i = 0; i < text.size(); ++i) {
 			const char c = text[i];
@@ -435,7 +435,7 @@ struct dumper {
 
 	// --- numbers
 
-	template <typename T> CTJSON_DUMPS_CONSTEXPR void write_integer(T value) {
+	template <typename T> CTJSON5_DUMPS_CONSTEXPR void write_integer(T value) {
 		char buffer[24]{};
 		int length = 0;
 		auto magnitude = static_cast<unsigned long long>(value);
@@ -454,7 +454,7 @@ struct dumper {
 		}
 	}
 
-	CTJSON_DUMPS_CONSTEXPR void write_floating(double value) {
+	CTJSON5_DUMPS_CONSTEXPR void write_floating(double value) {
 		const unsigned long long bits = double_bits(value);
 		const bool negative = (bits >> 63) != 0;
 		const auto biased_exponent = static_cast<int>((bits >> 52) & 0x7FF);
@@ -524,7 +524,7 @@ struct dumper {
 
 	// --- the object/array shells (used by containers and documents)
 
-	template <typename WriteItems> CTJSON_DUMPS_CONSTEXPR void write_array_shell(size_t count, int depth, WriteItems && write_items) {
+	template <typename WriteItems> CTJSON5_DUMPS_CONSTEXPR void write_array_shell(size_t count, int depth, WriteItems && write_items) {
 		if (count == 0) {
 			out += "[]";
 			return;
@@ -540,7 +540,7 @@ struct dumper {
 		out += ']';
 	}
 
-	template <typename WriteItems> CTJSON_DUMPS_CONSTEXPR void write_object_shell(size_t count, int depth, WriteItems && write_items) {
+	template <typename WriteItems> CTJSON5_DUMPS_CONSTEXPR void write_object_shell(size_t count, int depth, WriteItems && write_items) {
 		if (count == 0) {
 			out += "{}";
 			return;
@@ -558,7 +558,7 @@ struct dumper {
 
 	// members arrive as already-rendered (key token, value) strings so
 	// sort_keys can reorder them regardless of the source container
-	CTJSON_DUMPS_CONSTEXPR void write_members(std::vector<std::pair<std::string, std::string>> && members, int depth) {
+	CTJSON5_DUMPS_CONSTEXPR void write_members(std::vector<std::pair<std::string, std::string>> && members, int depth) {
 		if (options.sort_keys) {
 			std::sort(members.begin(), members.end(), [](const auto & a, const auto & b) { return a.first < b.first; });
 		}
@@ -576,7 +576,7 @@ struct dumper {
 		});
 	}
 
-	template <typename Key> CTJSON_DUMPS_CONSTEXPR std::string render_key(const Key & key) {
+	template <typename Key> CTJSON5_DUMPS_CONSTEXPR std::string render_key(const Key & key) {
 		dumper sub{{}, options};
 		if constexpr (std::is_convertible_v<const Key &, std::string_view>) {
 			sub.write_string(std::string_view(key));
@@ -588,20 +588,20 @@ struct dumper {
 			sub.value(key, 0);
 			sub.out += '"';
 		} else {
-			static_assert(not_dumpable<Key>, "ctjson::dumps: object keys must be strings or numbers");
+			static_assert(not_dumpable<Key>, "ctjson5::dumps: object keys must be strings or numbers");
 		}
 		return std::move(sub.out);
 	}
 
-	template <typename T> CTJSON_DUMPS_CONSTEXPR std::string render_value(const T & value_to_render, int depth) {
+	template <typename T> CTJSON5_DUMPS_CONSTEXPR std::string render_value(const T & value_to_render, int depth) {
 		dumper sub{{}, options};
 		sub.value(value_to_render, depth);
 		return std::move(sub.out);
 	}
 
-	// --- ctjson document values
+	// --- ctjson5 document values
 
-	template <typename Node> CTJSON_DUMPS_CONSTEXPR void document(Node node, int depth) {
+	template <typename Node> CTJSON5_DUMPS_CONSTEXPR void document(Node node, int depth) {
 		if constexpr (Node::type == kind::object) {
 			std::vector<std::pair<std::string, std::string>> members;
 			for_each(node, [&](auto key, auto member_value) {
@@ -632,7 +632,7 @@ struct dumper {
 
 	// --- the dispatcher
 
-	template <typename T> CTJSON_DUMPS_CONSTEXPR void value(const T & v, int depth) {
+	template <typename T> CTJSON5_DUMPS_CONSTEXPR void value(const T & v, int depth) {
 		using D = std::remove_cv_t<std::remove_reference_t<T>>;
 		if constexpr (has_adl_to_json<D>::value) {
 			value(to_json(v), depth);
@@ -690,7 +690,7 @@ struct dumper {
 				}, v);
 			});
 		} else {
-			static_assert(not_dumpable<D>, "ctjson::dumps: this type is not JSON serializable; provide a to_json(const T &) found by ADL");
+			static_assert(not_dumpable<D>, "ctjson5::dumps: this type is not JSON serializable; provide a to_json(const T &) found by ADL");
 		}
 	}
 };
@@ -699,17 +699,17 @@ struct dumper {
 
 // like json.dumps: encode a value as a JSON string (constexpr with
 // C++20 library support for constexpr std::string/std::vector)
-CTLL_EXPORT template <typename T> CTJSON_DUMPS_CONSTEXPR std::string dumps(const T & value, dump_options options) {
+CTLL_EXPORT template <typename T> CTJSON5_DUMPS_CONSTEXPR std::string dumps(const T & value, dump_options options) {
 	detail::dumper d{{}, options};
 	d.value(value, 0);
 	return std::move(d.out);
 }
 
-CTLL_EXPORT template <typename T> CTJSON_DUMPS_CONSTEXPR std::string dumps(const T & value) {
+CTLL_EXPORT template <typename T> CTJSON5_DUMPS_CONSTEXPR std::string dumps(const T & value) {
 	return dumps(value, dump_options{});
 }
 
-CTLL_EXPORT template <typename T> CTJSON_DUMPS_CONSTEXPR std::string dumps(const T & value, int indent) {
+CTLL_EXPORT template <typename T> CTJSON5_DUMPS_CONSTEXPR std::string dumps(const T & value, int indent) {
 	dump_options options;
 	options.indent = indent;
 	return dumps(value, options);
@@ -731,6 +731,6 @@ CTLL_EXPORT template <typename T> void dump(const T & value, std::ostream & stre
 	dump(value, stream, options);
 }
 
-} // namespace ctjson
+} // namespace ctjson5
 
 #endif

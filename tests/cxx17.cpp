@@ -1,4 +1,4 @@
-#include <ctjson.hpp>
+#include <ctjson5.hpp>
 #include <string_view>
 using namespace std::literals;
 
@@ -8,10 +8,10 @@ static constexpr auto bad_text = ctll::fixed_string{"{oops"};
 static constexpr ctll::fixed_string name_key = "name";
 static constexpr ctll::fixed_string n_key = "n";
 
-static_assert(ctjson::is_valid<doc_text>);
-static_assert(!ctjson::is_valid<bad_text>);
+static_assert(ctjson5::is_valid<doc_text>);
+static_assert(!ctjson5::is_valid<bad_text>);
 
-constexpr auto doc = ctjson::parse<doc_text>();
+constexpr auto doc = ctjson5::parse<doc_text>();
 static_assert(doc.template get<name_key>() == "Hana"sv);
 static_assert(doc.template get<n_key>().template to<int>() == 42);
 

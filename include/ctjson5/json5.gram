@@ -1,0 +1,208 @@
+# JSON5 grammar (https://json5.org, The JSON5 Data Interchange Format)
+# for ctjson5.
+#
+# This file is the source of truth for include/ctjson5/json5.hpp, the
+# LL(1) parse table that CTLL (the compile-time LL parser) walks
+# character by character while your C++ compiles. Regenerate with:
+#
+#     make regrammar
+#
+# which runs Tablewright (https://github.com/alexios-angel/Tablewright).
+# Run `tablewright --syntax` for the .gram dialect reference.
+#
+# On top of RFC 8259 JSON this accepts, per the JSON5 spec:
+#   - // line comments (to a line terminator or end of input) and
+#     /* block comments */
+#   - single-quoted strings; \' \v \0 \xHH escapes; any other escaped
+#     character stands for itself (\a is "a"); line continuations
+#     (backslash before LF, CR, CRLF, U+2028 or U+2029)
+#   - unquoted object keys (ASCII identifiers: [A-Za-z_$][A-Za-z0-9_$]*)
+#   - trailing commas in objects and arrays
+#   - hexadecimal numbers (0x1F), leading/trailing decimal points
+#     (.5, 5.), an explicit plus sign, and Infinity/NaN with either sign
+#   - more whitespace: \v \f, and the multibyte NBSP, BOM, LS and PS
+#     (handled as their UTF-8 byte sequences)
+#
+# Known divergences, both permissive and restrictive, documented in the
+# README: unquoted keys are ASCII-only (the spec allows full ECMAScript
+# identifiers), whitespace outside the list above (other Zs characters)
+# is not recognized, and \0 is accepted even when a digit follows (the
+# spec forbids that).
+#
+# The parser is byte-level. Semantic actions build the document on a
+# type stack (actions.hpp): strings and numbers accumulate character by
+# character, objects and arrays collect their content back to a begin
+# marker.
+
+# ---------------------------------------------------------------------------
+# Terminal sets
+# ---------------------------------------------------------------------------
+
+lbrace={\{}
+rbrace={\}}
+lbracket={[}
+rbracket={]}
+colon={:}
+comma={\,}
+quote={\"}
+squote={'}
+backslash={\\}
+minus={-}
+plus={+}
+dot={.}
+slash={/}
+star={*}
+zero={0}
+onenine={1,2,3,4,5,6,7,8,9}
+digit={0,1,2,3,4,5,6,7,8,9}
+hexdig={0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f,A,B,C,D,E,F}
+e_char={e,E}
+x_char={x,X}
+
+# the third byte of U+2028 (line separator) and U+2029 (paragraph
+# separator) in UTF-8: E2 80 A8 / E2 80 A9
+ls_ps_third={\xA8,\xA9}
+
+# ASCII whitespace: space, tab, LF, CR, VT, FF
+ws_char={\x20,\x09,\x0A,\x0D,\x0B,\x0C}
+
+# single-character escapes that stand for a control character or
+# themselves: ' " \ / b f n r t v (0 is separate: NUL)
+escapable={\",',\\,/,b,f,n,r,t,v}
+
+# string content: everything except the closing quote flavour, the
+# backslash, and raw LF/CR (which need a line continuation); note that
+# U+2028 and U+2029 are allowed unescaped, as the spec permits - their
+# UTF-8 bytes pass through here
+dq_chars=sigma-{\",\\,\x0A,\x0D}
+sq_chars=sigma-{',\\,\x0A,\x0D}
+
+# comment bodies
+line_comment_chars=sigma-{\x0A,\x0D}
+block_comment_chars=sigma-{*}
+
+# escaped characters with no assigned meaning stand for themselves
+self_escape_chars=sigma-{\",',\\,/,b,f,n,r,t,v,u,x,X,0,1,2,3,4,5,6,7,8,9,\x0A,\x0D,\xE2}
+
+# identifiers for unquoted keys (ASCII subset of ECMAScript IdentifierName)
+id_start={a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,_,$}
+id_continue={a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0,1,2,3,4,5,6,7,8,9,_,$}
+
+# ---------------------------------------------------------------------------
+# Document: element = ws value ws (the first rule is the start symbol)
+# ---------------------------------------------------------------------------
+
+document-><ws>,<value>,<ws>
+
+# whitespace includes comments and the multibyte spaces:
+# U+00A0 NBSP = C2 A0, U+FEFF BOM = EF BB BF, U+2028 LS = E2 80 A8,
+# U+2029 PS = E2 80 A9
+ws->ws_char,<ws> | epsilon
+ws->slash,<comment>,<ws>
+ws->\xC2,\xA0,<ws>
+ws->\xEF,\xBB,\xBF,<ws>
+ws->\xE2,\x80,ls_ps_third,<ws>
+
+# // to the end of the line (the terminator itself is ordinary
+# whitespace and needs no consuming here, so end-of-input works too);
+# /* to the matching */
+comment->slash,<line_comment>
+comment->star,<block_comment>
+line_comment->line_comment_chars,<line_comment> | epsilon
+block_comment->block_comment_chars,<block_comment>
+block_comment->star,<block_comment_star>
+block_comment_star->slash | star,<block_comment_star> | block_comment_chars,<block_comment>
+
+# ---------------------------------------------------------------------------
+# Values
+# ---------------------------------------------------------------------------
+
+value->lbrace,[begin_object],<ws>,<object_content>
+value->lbracket,[begin_array],<ws>,<array_content>
+value->quote,[begin_string],<dq_content>
+value->squote,[begin_string],<sq_content>
+value-><number>
+value->t,"rue",[push_true]
+value->f,"alse",[push_false]
+value->n,"ull",[push_null]
+
+# ---------------------------------------------------------------------------
+# Objects and arrays, with trailing commas
+# ---------------------------------------------------------------------------
+
+object_content->rbrace,[end_object] | <member>,<object_tail>
+object_tail->rbrace,[end_object] | comma,<ws>,<object_after_comma>
+object_after_comma->rbrace,[end_object] | <member>,<object_tail>
+
+# keys: double-quoted, single-quoted, or an unquoted identifier
+member->quote,[begin_string],<dq_content>,[make_key],<ws>,colon,<ws>,<value>,[make_member],<ws>
+member->squote,[begin_string],<sq_content>,[make_key],<ws>,colon,<ws>,<value>,[make_member],<ws>
+member->id_start,[begin_string],[push_string_char],<identifier_tail>,[make_key],<ws>,colon,<ws>,<value>,[make_member],<ws>
+identifier_tail->id_continue,[push_string_char],<identifier_tail> | epsilon
+
+array_content->rbracket,[end_array] | <value>,<ws>,<array_tail>
+array_tail->rbracket,[end_array] | comma,<ws>,<array_after_comma>
+array_after_comma->rbracket,[end_array] | <value>,<ws>,<array_tail>
+
+# ---------------------------------------------------------------------------
+# Strings: one content rule per quote flavour, escapes shared
+# ---------------------------------------------------------------------------
+
+dq_content->quote,[end_string]
+dq_content->dq_chars,[push_string_char],<dq_content>
+dq_content->backslash,<escape>,<dq_content>
+
+sq_content->squote,[end_string]
+sq_content->sq_chars,[push_string_char],<sq_content>
+sq_content->backslash,<escape>,<sq_content>
+
+# named escapes, \0 (NUL), \xHH, \uHHHH, line continuations (backslash
+# before LF, CR, CRLF, LS or PS), and the self-escape (any other
+# character stands for itself; digits after a backslash are invalid)
+escape->escapable,[push_escaped_char]
+escape->zero,[push_escaped_char]
+escape->x_char,[begin_hex],hexdig,[push_hex],hexdig,[push_hex],[end_hex]
+escape->u,[begin_hex],hexdig,[push_hex],hexdig,[push_hex],hexdig,[push_hex],hexdig,[push_hex],[end_hex]
+escape->\x0A
+escape->\x0D,<continuation_lf>
+continuation_lf->\x0A,[line_continuation] | epsilon
+escape->\xE2,\x80,ls_ps_third
+escape->self_escape_chars,[push_string_char]
+
+# ---------------------------------------------------------------------------
+# Numbers: JSON plus hex, leading/trailing points, explicit plus, and
+# the Infinity/NaN literals (with either sign)
+# ---------------------------------------------------------------------------
+
+number->minus,[begin_number],[push_number_char],<signed_numeric>
+number->plus,[begin_number],<signed_numeric>
+number->zero,[begin_number],[push_number_char],<after_zero>
+number->onenine,[begin_number],[push_number_char],<int_tail>
+number->dot,[begin_number],[push_number_char],<leading_frac>
+number->I,[begin_number],"nfinity",[finish_infinity]
+number->N,[begin_number],"aN",[finish_nan]
+
+signed_numeric->zero,[push_number_char],<after_zero>
+signed_numeric->onenine,[push_number_char],<int_tail>
+signed_numeric->dot,[push_number_char],<leading_frac>
+signed_numeric->I,"nfinity",[finish_infinity]
+signed_numeric->N,"aN",[finish_nan]
+
+# after a leading zero: a hex literal, a fraction, an exponent, or done
+after_zero->x_char,[push_number_char],hexdig,[push_number_char],<hex_tail>
+after_zero-><frac_part>
+hex_tail->hexdig,[push_number_char],<hex_tail> | epsilon
+
+int_tail->digit,[push_number_char],<int_tail> | <frac_part>
+
+# ".5" needs at least one digit; "5." does not
+leading_frac->digit,[push_number_char],<frac_tail>
+frac_part->dot,[push_number_char],<frac_tail> | <exp_part>
+frac_tail->digit,[push_number_char],<frac_tail> | <exp_part>
+
+exp_part->e_char,[push_number_char],<exp_sign> | epsilon
+exp_sign->minus,[push_number_char],<exp_first>
+exp_sign->plus,[push_number_char],<exp_first>
+exp_sign->digit,[push_number_char],<exp_tail>
+exp_first->digit,[push_number_char],<exp_tail>
+exp_tail->digit,[push_number_char],<exp_tail> | epsilon

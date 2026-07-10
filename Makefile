@@ -1,4 +1,4 @@
-.PHONY: default all clean grammar regrammar single-header single-header/ctjson.hpp
+.PHONY: default all clean grammar regrammar single-header single-header/ctjson5.hpp
 
 default: all
 
@@ -26,23 +26,23 @@ $(OBJECTS): %.o: %.cpp
 clean:
 	rm -f $(OBJECTS) $(DEPENDENCY_FILES)
 
-grammar: include/ctjson/json.hpp
+grammar: include/ctjson5/json5.hpp
 
 regrammar:
-	@rm -f include/ctjson/json.hpp
+	@rm -f include/ctjson5/json5.hpp
 	@$(MAKE) grammar
 
-include/ctjson/json.hpp: include/ctjson/json.gram
+include/ctjson5/json5.hpp: include/ctjson5/json5.gram
 	@echo "LL1q $<"
-	@$(TABLEWRIGHT) --ll --q --input=include/ctjson/json.gram --output=include/ctjson/ --generator=cpp_ctll_v2 --cfg:fname=json.hpp --cfg:namespace=ctjson --cfg:guard=CTJSON__JSON__HPP --cfg:grammar_name=json
+	@$(TABLEWRIGHT) --ll --q --input=include/ctjson5/json5.gram --output=include/ctjson5/ --generator=cpp_ctll_v2 --cfg:fname=json5.hpp --cfg:namespace=ctjson5 --cfg:guard=CTJSON5__JSON5__HPP --cfg:grammar_name=json5
 
 # needs python3 with the quom package
-single-header: single-header/ctjson.hpp
+single-header: single-header/ctjson5.hpp
 
-single-header/ctjson.hpp:
-	$(PYTHON) -m quom include/ctjson.hpp ctjson.hpp.tmp
-	echo "/*" > single-header/ctjson.hpp
-	cat LICENSE >> single-header/ctjson.hpp
-	echo "*/" >> single-header/ctjson.hpp
-	cat ctjson.hpp.tmp >> single-header/ctjson.hpp
-	rm ctjson.hpp.tmp
+single-header/ctjson5.hpp:
+	$(PYTHON) -m quom include/ctjson5.hpp ctjson5.hpp.tmp
+	echo "/*" > single-header/ctjson5.hpp
+	cat LICENSE >> single-header/ctjson5.hpp
+	echo "*/" >> single-header/ctjson5.hpp
+	cat ctjson5.hpp.tmp >> single-header/ctjson5.hpp
+	rm ctjson5.hpp.tmp

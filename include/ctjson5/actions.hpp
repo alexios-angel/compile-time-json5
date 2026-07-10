@@ -1,7 +1,7 @@
-#ifndef CTJSON__ACTIONS__HPP
-#define CTJSON__ACTIONS__HPP
+#ifndef CTJSON5__ACTIONS__HPP
+#define CTJSON5__ACTIONS__HPP
 
-#include "json.hpp"
+#include "json5.hpp"
 #include "types.hpp"
 #include "../ctll/list.hpp"
 #include "../ctll/grammars.hpp"
@@ -13,7 +13,7 @@
 // to its begin marker. Returning ctll::reject{} from an action turns the
 // parse into a syntax error - used for lone UTF-16 surrogates.
 
-namespace ctjson {
+namespace ctjson5 {
 
 // the parser subject: just a stack of partial results
 template <typename Stack = ctll::list<>> struct context {
@@ -46,25 +46,25 @@ template <char32_t CodePoint, auto... Cs> constexpr auto append_code_point(strin
 	}
 }
 
-struct json_actions {
+struct json5_actions {
 
 	// --- objects and arrays open with a marker
 
-	template <auto V, typename... Ts> static constexpr auto apply(json::begin_object, ctll::term<V>, context<ctll::list<Ts...>>) {
+	template <auto V, typename... Ts> static constexpr auto apply(json5::begin_object, ctll::term<V>, context<ctll::list<Ts...>>) {
 		return context<ctll::list<object_begin_marker, Ts...>>{};
 	}
 
-	template <auto V, typename... Ts> static constexpr auto apply(json::begin_array, ctll::term<V>, context<ctll::list<Ts...>>) {
+	template <auto V, typename... Ts> static constexpr auto apply(json5::begin_array, ctll::term<V>, context<ctll::list<Ts...>>) {
 		return context<ctll::list<array_begin_marker, Ts...>>{};
 	}
 
 	// --- strings accumulate onto a fresh string<>
 
-	template <auto V, typename... Ts> static constexpr auto apply(json::begin_string, ctll::term<V>, context<ctll::list<Ts...>>) {
+	template <auto V, typename... Ts> static constexpr auto apply(json5::begin_string, ctll::term<V>, context<ctll::list<Ts...>>) {
 		return context<ctll::list<string<>, Ts...>>{};
 	}
 
-	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json::push_string_char, ctll::term<V>, context<ctll::list<string<Cs...>, Ts...>>) {
+	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json5::push_string_char, ctll::term<V>, context<ctll::list<string<Cs...>, Ts...>>) {
 		if constexpr (static_cast<size_t>(V) > 0xFF) {
 			// the input was decoded to code points: encode back to UTF-8
 			return context{ctll::list<decltype(append_code_point<static_cast<char32_t>(V)>(string<Cs...>{})), Ts...>{}};
@@ -75,11 +75,11 @@ struct json_actions {
 	}
 
 	// a lone high surrogate followed by a regular character is invalid
-	template <auto V, size_t High, typename... Ts> static constexpr auto apply(json::push_string_char, ctll::term<V>, context<ctll::list<pending_surrogate<High>, Ts...>>) {
+	template <auto V, size_t High, typename... Ts> static constexpr auto apply(json5::push_string_char, ctll::term<V>, context<ctll::list<pending_surrogate<High>, Ts...>>) {
 		return ctll::reject{};
 	}
 
-	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json::push_escaped_char, ctll::term<V>, context<ctll::list<string<Cs...>, Ts...>>) {
+	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json5::push_escaped_char, ctll::term<V>, context<ctll::list<string<Cs...>, Ts...>>) {
 		constexpr char32_t decoded = [] {
 			switch (static_cast<char>(V)) {
 				case 'b': return char32_t{0x08};
@@ -87,24 +87,26 @@ struct json_actions {
 				case 'n': return char32_t{0x0A};
 				case 'r': return char32_t{0x0D};
 				case 't': return char32_t{0x09};
-				default: return static_cast<char32_t>(V); // " \ /
+				case 'v': return char32_t{0x0B};
+				case '0': return char32_t{0x00};
+				default: return static_cast<char32_t>(V); // " ' \ /
 			}
 		}();
 		return context<ctll::list<string<Cs..., decoded>, Ts...>>{};
 	}
 
-	template <auto V, size_t High, typename... Ts> static constexpr auto apply(json::push_escaped_char, ctll::term<V>, context<ctll::list<pending_surrogate<High>, Ts...>>) {
+	template <auto V, size_t High, typename... Ts> static constexpr auto apply(json5::push_escaped_char, ctll::term<V>, context<ctll::list<pending_surrogate<High>, Ts...>>) {
 		return ctll::reject{};
 	}
 
 	// --- \uXXXX escapes: accumulate four hex digits, then append the
 	// code point (combining UTF-16 surrogate pairs)
 
-	template <auto V, typename... Ts> static constexpr auto apply(json::begin_hex, ctll::term<V>, context<ctll::list<Ts...>>) {
+	template <auto V, typename... Ts> static constexpr auto apply(json5::begin_hex, ctll::term<V>, context<ctll::list<Ts...>>) {
 		return context<ctll::list<hex_marker<0>, Ts...>>{};
 	}
 
-	template <auto V, size_t Value, typename... Ts> static constexpr auto apply(json::push_hex, ctll::term<V>, context<ctll::list<hex_marker<Value>, Ts...>>) {
+	template <auto V, size_t Value, typename... Ts> static constexpr auto apply(json5::push_hex, ctll::term<V>, context<ctll::list<hex_marker<Value>, Ts...>>) {
 		constexpr size_t digit = [] {
 			if constexpr (V >= '0' && V <= '9') {
 				return static_cast<size_t>(V - '0');
@@ -117,7 +119,7 @@ struct json_actions {
 		return context<ctll::list<hex_marker<Value * 16 + digit>, Ts...>>{};
 	}
 
-	template <auto V, size_t CodePoint, auto... Cs, typename... Ts> static constexpr auto apply(json::end_hex, ctll::term<V>, context<ctll::list<hex_marker<CodePoint>, string<Cs...>, Ts...>>) {
+	template <auto V, size_t CodePoint, auto... Cs, typename... Ts> static constexpr auto apply(json5::end_hex, ctll::term<V>, context<ctll::list<hex_marker<CodePoint>, string<Cs...>, Ts...>>) {
 		if constexpr (CodePoint >= 0xD800 && CodePoint <= 0xDBFF) {
 			// high surrogate: wait for the low half
 			return context<ctll::list<pending_surrogate<CodePoint>, string<Cs...>, Ts...>>{};
@@ -129,7 +131,7 @@ struct json_actions {
 		}
 	}
 
-	template <auto V, size_t CodePoint, size_t High, auto... Cs, typename... Ts> static constexpr auto apply(json::end_hex, ctll::term<V>, context<ctll::list<hex_marker<CodePoint>, pending_surrogate<High>, string<Cs...>, Ts...>>) {
+	template <auto V, size_t CodePoint, size_t High, auto... Cs, typename... Ts> static constexpr auto apply(json5::end_hex, ctll::term<V>, context<ctll::list<hex_marker<CodePoint>, pending_surrogate<High>, string<Cs...>, Ts...>>) {
 		if constexpr (CodePoint >= 0xDC00 && CodePoint <= 0xDFFF) {
 			constexpr char32_t combined = static_cast<char32_t>(0x10000 + ((High - 0xD800) << 10) + (CodePoint - 0xDC00));
 			return context{ctll::list<decltype(append_code_point<combined>(string<Cs...>{})), Ts...>{}};
@@ -139,45 +141,60 @@ struct json_actions {
 		}
 	}
 
-	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json::end_string, ctll::term<V>, context<ctll::list<string<Cs...>, Ts...>>) {
+	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json5::end_string, ctll::term<V>, context<ctll::list<string<Cs...>, Ts...>>) {
 		return context<ctll::list<string<Cs...>, Ts...>>{};
 	}
 
-	template <auto V, size_t High, typename... Ts> static constexpr auto apply(json::end_string, ctll::term<V>, context<ctll::list<pending_surrogate<High>, Ts...>>) {
+	template <auto V, size_t High, typename... Ts> static constexpr auto apply(json5::end_string, ctll::term<V>, context<ctll::list<pending_surrogate<High>, Ts...>>) {
 		return ctll::reject{};
 	}
 
 	// --- numbers accumulate their raw spelling onto a fresh number<>
 
-	template <auto V, typename... Ts> static constexpr auto apply(json::begin_number, ctll::term<V>, context<ctll::list<Ts...>>) {
+	template <auto V, typename... Ts> static constexpr auto apply(json5::begin_number, ctll::term<V>, context<ctll::list<Ts...>>) {
 		return context<ctll::list<number<>, Ts...>>{};
 	}
 
-	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json::push_number_char, ctll::term<V>, context<ctll::list<number<Cs...>, Ts...>>) {
+	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json5::push_number_char, ctll::term<V>, context<ctll::list<number<Cs...>, Ts...>>) {
 		return context<ctll::list<number<Cs..., static_cast<char32_t>(V)>, Ts...>>{};
+	}
+
+	// the Infinity and NaN literals complete the number with their
+	// spelling (a sign pushed earlier stays in front)
+	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json5::finish_infinity, ctll::term<V>, context<ctll::list<number<Cs...>, Ts...>>) {
+		return context<ctll::list<number<Cs..., U'I', U'n', U'f', U'i', U'n', U'i', U't', U'y'>, Ts...>>{};
+	}
+
+	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json5::finish_nan, ctll::term<V>, context<ctll::list<number<Cs...>, Ts...>>) {
+		return context<ctll::list<number<Cs..., U'N', U'a', U'N'>, Ts...>>{};
+	}
+
+	// a line continuation inside a string contributes nothing
+	template <auto V, typename... Ts> static constexpr auto apply(json5::line_continuation, ctll::term<V>, context<ctll::list<Ts...>> subject) {
+		return subject;
 	}
 
 	// --- literals
 
-	template <auto V, typename... Ts> static constexpr auto apply(json::push_true, ctll::term<V>, context<ctll::list<Ts...>>) {
+	template <auto V, typename... Ts> static constexpr auto apply(json5::push_true, ctll::term<V>, context<ctll::list<Ts...>>) {
 		return context<ctll::list<boolean<true>, Ts...>>{};
 	}
 
-	template <auto V, typename... Ts> static constexpr auto apply(json::push_false, ctll::term<V>, context<ctll::list<Ts...>>) {
+	template <auto V, typename... Ts> static constexpr auto apply(json5::push_false, ctll::term<V>, context<ctll::list<Ts...>>) {
 		return context<ctll::list<boolean<false>, Ts...>>{};
 	}
 
-	template <auto V, typename... Ts> static constexpr auto apply(json::push_null, ctll::term<V>, context<ctll::list<Ts...>>) {
+	template <auto V, typename... Ts> static constexpr auto apply(json5::push_null, ctll::term<V>, context<ctll::list<Ts...>>) {
 		return context<ctll::list<null, Ts...>>{};
 	}
 
 	// --- members pair the completed key with the completed value
 
-	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json::make_key, ctll::term<V>, context<ctll::list<string<Cs...>, Ts...>>) {
+	template <auto V, auto... Cs, typename... Ts> static constexpr auto apply(json5::make_key, ctll::term<V>, context<ctll::list<string<Cs...>, Ts...>>) {
 		return context<ctll::list<key_marker<string<Cs...>>, Ts...>>{};
 	}
 
-	template <auto V, typename Value, typename Key, typename... Ts> static constexpr auto apply(json::make_member, ctll::term<V>, context<ctll::list<Value, key_marker<Key>, Ts...>>) {
+	template <auto V, typename Value, typename Key, typename... Ts> static constexpr auto apply(json5::make_member, ctll::term<V>, context<ctll::list<Value, key_marker<Key>, Ts...>>) {
 		return context<ctll::list<member<Key, Value>, Ts...>>{};
 	}
 
@@ -191,7 +208,7 @@ struct json_actions {
 		return collect_object(ctll::list<Rest...>{}, ctll::list<member<Key, Value>, Collected...>{});
 	}
 
-	template <auto V, typename... Ts> static constexpr auto apply(json::end_object, ctll::term<V>, context<ctll::list<Ts...>>) {
+	template <auto V, typename... Ts> static constexpr auto apply(json5::end_object, ctll::term<V>, context<ctll::list<Ts...>>) {
 		return collect_object(ctll::list<Ts...>{}, ctll::list<>{});
 	}
 
@@ -202,11 +219,11 @@ struct json_actions {
 		return collect_array(ctll::list<Rest...>{}, ctll::list<Value, Collected...>{});
 	}
 
-	template <auto V, typename... Ts> static constexpr auto apply(json::end_array, ctll::term<V>, context<ctll::list<Ts...>>) {
+	template <auto V, typename... Ts> static constexpr auto apply(json5::end_array, ctll::term<V>, context<ctll::list<Ts...>>) {
 		return collect_array(ctll::list<Ts...>{}, ctll::list<>{});
 	}
 };
 
-} // namespace ctjson
+} // namespace ctjson5
 
 #endif

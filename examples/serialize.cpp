@@ -5,11 +5,11 @@
 //
 // Build: make serialize
 
-#include <ctjson.hpp>
+#include <ctjson5.hpp>
 #include <iostream>
 
 // messy input: spread over lines, indented, with redundant \u escapes
-constexpr auto doc = ctjson::parse<R"({
+constexpr auto doc = ctjson5::parse<R"({
 	"name"   : "café",
 	"tabs"   : "a\tb",
 	"values" : [ 1 , 2.50 , -3e2 ],
@@ -17,16 +17,16 @@ constexpr auto doc = ctjson::parse<R"({
 })">();
 
 // one canonical line comes out
-constexpr auto canonical = ctjson::serialize(doc);
+constexpr auto canonical = ctjson5::serialize(doc);
 static_assert(canonical == "{\"name\":\"caf\xc3\xa9\",\"tabs\":\"a\\tb\",\"values\":[1,2.50,-3e2],\"nested\":{\"ok\":true}}");
 
 // numbers keep the spelling they were parsed with (2.50 stays 2.50)
-static_assert(ctjson::serialize(ctjson::parse<"[ 2.50 ]">()) == "[2.50]");
+static_assert(ctjson5::serialize(ctjson5::parse<"[ 2.50 ]">()) == "[2.50]");
 
 // serialization is a fixed point: re-parsing the canonical form and
 // serializing again changes nothing
 static constexpr ctll::fixed_string canonical_text{"{\"name\":\"caf\xc3\xa9\",\"tabs\":\"a\\tb\",\"values\":[1,2.50,-3e2],\"nested\":{\"ok\":true}}"};
-static_assert(ctjson::serialize(ctjson::parse<canonical_text>()) == canonical);
+static_assert(ctjson5::serialize(ctjson5::parse<canonical_text>()) == canonical);
 
 int main() {
 	// the canonical form is a plain null-terminated string in the binary

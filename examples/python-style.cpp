@@ -5,7 +5,7 @@
 //
 // Build: make python-style
 
-#include <ctjson.hpp>
+#include <ctjson5.hpp>
 #include <iostream>
 #include <map>
 #include <optional>
@@ -27,23 +27,23 @@ auto to_json(const sensor & s) {
 int main() {
 	// json.dumps(obj)
 	std::map<std::string, std::vector<int>> data{{"a", {1, 2}}, {"b", {}}};
-	std::cout << ctjson::dumps(data) << "\n\n";
+	std::cout << ctjson5::dumps(data) << "\n\n";
 
 	// json.dumps(obj, indent=2)
-	std::cout << ctjson::dumps(data, 2) << "\n\n";
+	std::cout << ctjson5::dumps(data, 2) << "\n\n";
 
 	// json.dumps(obj, indent=2, sort_keys=True) on an unsorted source
-	ctjson::dump_options options;
+	ctjson5::dump_options options;
 	options.indent = 2;
 	options.sort_keys = true;
-	std::cout << ctjson::dumps(std::map<std::string, int>{{"zeta", 26}, {"alpha", 1}}, options) << "\n\n";
+	std::cout << ctjson5::dumps(std::map<std::string, int>{{"zeta", 26}, {"alpha", 1}}, options) << "\n\n";
 
 	// user types through to_json, containers of them included
 	std::vector<sensor> sensors{{"s1", 22.5}, {"s2", std::nullopt}};
-	std::cout << ctjson::dumps(sensors, 2) << "\n\n";
+	std::cout << ctjson5::dumps(sensors, 2) << "\n\n";
 
 	// a compile-time document pretty-printed at runtime
-	constexpr auto doc = ctjson::parse<R"({"answer":42,"exact":2.50})">();
-	ctjson::dump(doc, std::cout, 2); // json.dump(obj, fp, indent=2)
+	constexpr auto doc = ctjson5::parse<R"({"answer":42,"exact":2.50})">();
+	ctjson5::dump(doc, std::cout, 2); // json.dump(obj, fp, indent=2)
 	std::cout << "\n";
 }

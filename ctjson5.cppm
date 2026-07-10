@@ -1,9 +1,9 @@
 module;
 
-export module ctjson;
+export module ctjson5;
 import std;
 
-#define CTJSON_IN_A_MODULE
+#define CTJSON5_IN_A_MODULE
 #define CTLL_IN_A_MODULE
 
 using std::int16_t;
@@ -16,4 +16,4 @@ using std::uint32_t;
 using std::uint64_t;
 using std::uint8_t;
 
-#include "include/ctjson.hpp"
+#include "include/ctjson5.hpp"

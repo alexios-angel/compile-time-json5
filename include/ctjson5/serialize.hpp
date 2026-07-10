@@ -1,26 +1,26 @@
-#ifndef CTJSON__SERIALIZE__HPP
-#define CTJSON__SERIALIZE__HPP
+#ifndef CTJSON5__SERIALIZE__HPP
+#define CTJSON5__SERIALIZE__HPP
 
 #include "types.hpp"
-#ifndef CTJSON_IN_A_MODULE
+#ifndef CTJSON5_IN_A_MODULE
 #include <array>
 #include <cstddef>
 #include <string_view>
 #endif
 
-// Compile-time serialization: ctjson::serialize(doc) renders any document
+// Compile-time serialization: ctjson5::serialize(doc) renders any document
 // value back to minified JSON in static storage and returns a
 // std::string_view of it - nothing happens at runtime.
 //
-//   constexpr auto doc = ctjson::parse<R"({ "a" : [ 1, 2 ] })">();
-//   static_assert(ctjson::serialize(doc) == R"({"a":[1,2]})");
+//   constexpr auto doc = ctjson5::parse<R"({ "a" : [ 1, 2 ] })">();
+//   static_assert(ctjson5::serialize(doc) == R"({"a":[1,2]})");
 //
 // String content is written back with the mandatory escapes (quote,
 // backslash, and control characters - \b \f \n \r \t by name, \u00XX
 // otherwise); everything else, including multi-byte UTF-8, passes
 // through as-is. Numbers keep the spelling they were parsed with.
 
-namespace ctjson {
+namespace ctjson5 {
 
 namespace detail {
 
@@ -164,6 +164,6 @@ CTLL_EXPORT template <typename Node> constexpr std::string_view serialize(Node =
 	return std::string_view{storage::content.data(), storage::length};
 }
 
-} // namespace ctjson
+} // namespace ctjson5
 
 #endif

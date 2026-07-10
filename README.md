@@ -6,46 +6,51 @@
 > by Hana Dusíková, via the [notre](https://github.com/alexios-angel/notre)
 > fork. Apache License 2.0 with LLVM Exceptions; see [NOTICE](NOTICE).
 
-# ctjson — compile-time JSON
+# ctjson5 — compile-time JSON5
 
-JSON parsed while your code compiles. The document is a *type*: malformed
-JSON is a compile error, lookups are resolved at compile time, and every
-accessor is `constexpr` — usable in `static_assert`, as template
-arguments, or at runtime with zero parsing cost.
+[JSON5](https://json5.org/) parsed while your code compiles. The document
+is a *type*: malformed JSON5 is a compile error, lookups are resolved at
+compile time, and every accessor is `constexpr` — usable in
+`static_assert`, as template arguments, or at runtime with zero parsing
+cost. Every JSON document is also a JSON5 document, so this is a strict
+superset of the JSON library it forked from.
 
 ```c++
-#include <ctjson.hpp>
+#include <ctjson5.hpp>
 
-constexpr auto doc = ctjson::parse<R"({
-    "name":  "Hana",
-    "stars": 4700,
-    "ratio": -2.5e-1,
-    "tags":  ["regex", "compile-time"],
-    "extra": {"active": true, "parent": null}
+constexpr auto doc = ctjson5::parse<R"({
+    // JSON5: comments, unquoted keys, single quotes, trailing commas
+    name:  'Hana',
+    stars: 4700,
+    ratio: -.25,
+    flags: 0x2A,
+    tags:  ['regex', 'compile-time',],
+    extra: {active: true, parent: null},
 })">();
 
 static_assert(doc.get<"name">() == "Hana");
 static_assert(doc.get<"stars">().to<int>() == 4700);
 static_assert(doc.get<"ratio">().to<double>() == -0.25);
+static_assert(doc.get<"flags">().to<int>() == 42);
 static_assert(doc.get<"tags">().get<1>() == "compile-time");
 static_assert(doc.get<"extra">().get<"active">());
 static_assert(!doc.contains<"missing">());
 
-static_assert(ctjson::is_valid<"[1, 2, 3]">);
-static_assert(!ctjson::is_valid<"[1, 2,]">);   // RFC 8259, strictly
+static_assert(ctjson5::is_valid<"[1, 2, 3,] // fine">);
+static_assert(!ctjson5::is_valid<"[01]">);   // still not lawless
 ```
 
 ## API
 
 ```c++
 // validity as a bool (never a compile error):
-template <ctll::fixed_string input> constexpr bool ctjson::is_valid;
+template <ctll::fixed_string input> constexpr bool ctjson5::is_valid;
 
 // the parsed document; invalid JSON fails the build:
-template <ctll::fixed_string input> constexpr auto ctjson::parse();
+template <ctll::fixed_string input> constexpr auto ctjson5::parse();
 ```
 
-`parse` returns one of the document types, all in namespace `ctjson`:
+`parse` returns one of the document types, all in namespace `ctjson5`:
 
 | Type | Accessors |
 |------|-----------|
@@ -56,18 +61,18 @@ template <ctll::fixed_string input> constexpr auto ctjson::parse();
 | `boolean<B>` | `value`, `operator bool` |
 | `null` | — |
 
-Every type carries `static constexpr ctjson::kind type` for
+Every type carries `static constexpr ctjson5::kind type` for
 introspection (`kind::object`, `kind::array`, ...).
 
 Two free functions round out the API:
 
 ```c++
 // render any document value back to minified JSON, in static storage:
-static_assert(ctjson::serialize(ctjson::parse<R"({ "a" : [ 1, 2 ] })">()) == R"({"a":[1,2]})");
+static_assert(ctjson5::serialize(ctjson5::parse<R"({ "a" : [ 1, 2 ] })">()) == R"({"a":[1,2]})");
 
 // compile-time iteration (elements, or key/value pairs):
-ctjson::for_each(doc.get<"tags">(), [](auto value) { /* each has its own type */ });
-ctjson::for_each(doc, [](auto key, auto value) { ... });
+ctjson5::for_each(doc.get<"tags">(), [](auto value) { /* each has its own type */ });
+ctjson5::for_each(doc, [](auto key, auto value) { ... });
 ```
 
 `serialize` re-emits strings with the mandatory escapes and numbers with
@@ -75,7 +80,7 @@ the spelling they were parsed with; the result is null-terminated.
 
 ## Python-style runtime API
 
-`ctjson::dumps` is `json.dumps` for ordinary C++ values — and it is
+`ctjson5::dumps` is `json.dumps` for ordinary C++ values — and it is
 `constexpr`, so whole encodings can be `static_assert`ed (needs C++20's
 constexpr `std::string`/`std::vector`; `dump` to a stream is inherently
 runtime). Floats are rendered by a built-in constexpr Dragon4 (shortest
@@ -84,19 +89,19 @@ repr's formatting rule, and the output is verified byte-identical
 against CPython across 100,000 fuzzed doubles plus every edge case:
 
 ```c++
-static_assert(ctjson::dumps(std::vector<int>{1, 2, 3}) == "[1, 2, 3]");
-static_assert(ctjson::dumps(0.1) == "0.1");
-static_assert(ctjson::dumps(1e16) == "1e+16");     // Python's sci threshold
-static_assert(ctjson::dumps(5e-324) == "5e-324");  // denormals exact
+static_assert(ctjson5::dumps(std::vector<int>{1, 2, 3}) == "[1, 2, 3]");
+static_assert(ctjson5::dumps(0.1) == "0.1");
+static_assert(ctjson5::dumps(1e16) == "1e+16");     // Python's sci threshold
+static_assert(ctjson5::dumps(5e-324) == "5e-324");  // denormals exact
 ```
 
 ```c++
-ctjson::dumps(std::map<std::string, std::vector<int>>{{"a", {1, 2}}});
+ctjson5::dumps(std::map<std::string, std::vector<int>>{{"a", {1, 2}}});
 //  -> {"a": [1, 2]}                        (Python's separators)
-ctjson::dumps(value, 2);                    // indent=2 pretty printing
-ctjson::dumps(value, {.indent = 2, .sort_keys = true, .ensure_ascii = true});
-ctjson::dump(value, stream);                // json.dump, onto a std::ostream
-ctjson::loads<"[1, 2]">();                  // parse, under its Python name
+ctjson5::dumps(value, 2);                    // indent=2 pretty printing
+ctjson5::dumps(value, {.indent = 2, .sort_keys = true, .ensure_ascii = true});
+ctjson5::dump(value, stream);                // json.dump, onto a std::ostream
+ctjson5::loads<"[1, 2]">();                  // parse, under its Python name
 ```
 
 The encoder accepts what Python's does: map-likes become objects
@@ -112,18 +117,34 @@ something dumpable — the `default=` hook. One deliberate divergence:
 `ensure_ascii` defaults to **false** (UTF-8 passes through); switch it
 on for Python's `\uXXXX` output, surrogate pairs included.
 
+What JSON5 adds over JSON, all supported here at compile time and at
+runtime:
+
+* `//` line and `/* block */` comments
+* unquoted object keys (`{key: 1}`) and single-quoted strings/keys
+* trailing commas in objects and arrays
+* hexadecimal numbers (`0x2A`), leading/trailing decimal points (`.5`,
+  `5.`), an explicit plus sign, and `Infinity`/`NaN` with either sign
+* string escapes `\'`, `\v`, `\0`, `\xHH`, self-escapes (`\a` is
+  `a`), and line continuations (backslash before LF, CR, CRLF, LS, PS)
+* extra whitespace: `\v`, `\f`, NBSP, BOM, LS and PS
+
 Details:
 
 * String content is stored as UTF-8 bytes. All escapes are decoded at
-  parse time, including `\uXXXX` and UTF-16 surrogate pairs
-  (`"😀"` becomes the four UTF-8 bytes of 😀); lone
+  parse time, including `\uXXXX` and UTF-16 surrogate pairs; lone
   surrogates are rejected.
-* Numbers keep their raw spelling; `to<T>()` converts on demand
-  (integral conversions truncate fractions, like a cast).
-* Parsing is strict RFC 8259: no trailing commas, no leading zeros, no
-  unquoted keys, no `'` strings, nothing after the root value.
-  Duplicate keys are accepted (the RFC allows them); `get` finds the
-  first.
+* Numbers keep their raw spelling — `0x2A` stays hexadecimal through
+  `serialize` — and `to<T>()` converts on demand (integral conversions
+  truncate fractions, like a cast; `is_integer()` is true for hex).
+* Still rejected, per the spec: leading zeros, digits after a
+  backslash, a lone `/`, unterminated block comments, raw line
+  terminators inside strings, and anything after the root value.
+  Duplicate keys are accepted; `get` finds the first.
+* Documented divergences from the spec: unquoted keys are ASCII
+  identifiers (`[A-Za-z_$][A-Za-z0-9_$]*`; full ECMAScript identifiers
+  are not recognized), whitespace outside the list above (other `Zs`
+  characters) is not, and `\0` is accepted even when a digit follows.
 
 ## C++17
 
@@ -134,24 +155,24 @@ ctll::fixed_string` variables with linkage instead of string literals:
 static constexpr auto text = ctll::fixed_string{R"({"n":42})"};
 static constexpr ctll::fixed_string n_key = "n";
 
-constexpr auto doc = ctjson::parse<text>();
+constexpr auto doc = ctjson5::parse<text>();
 static_assert(doc.template get<n_key>().template to<int>() == 42);
 ```
 
 ## Runtime parsing
 
-`ctjson::loads(text)` and `ctjson::load(stream)` are `json.loads`/`json.load`
-for strings that only exist at runtime. They return
-`std::optional<ctjson::value>` — a dynamic document mirroring the
+`ctjson5::loads(text)` and `ctjson5::load(stream)` are `json.loads`/`json.load`
+for JSON5 text that only exists at runtime. They return
+`std::optional<ctjson5::value>` — a dynamic document mirroring the
 compile-time accessors — with `std::nullopt` (plus a byte offset through
 the `load_error` overloads) on malformed input; the library stays
 exception free:
 
 ```c++
-if (auto doc = ctjson::loads(request_body)) {
+if (auto doc = ctjson5::loads(request_body)) {
     (*doc)["users"][0]["name"].view();   // chains are null-safe
     (*doc)["retries"].to<int>();
-    ctjson::dumps(*doc, 2);              // the encoder accepts values
+    ctjson5::dumps(*doc, 2);              // the encoder accepts values
 }
 ```
 
@@ -164,13 +185,13 @@ like the compile-time parser), and lone `\u` surrogates are rejected.
 
 ## How it works
 
-The same architecture as CTRE: an RFC 8259 grammar
-([`json.gram`](include/ctjson/json.gram)) is compiled by
+The same architecture as CTRE: a JSON5 grammar
+([`json5.gram`](include/ctjson5/json5.gram)) is compiled by
 [Tablewright](https://github.com/alexios-angel/Tablewright) into an
 LL(1) parse table of `rule()` overloads
-([`json.hpp`](include/ctjson/json.hpp)), which CTLL — the compile-time
+([`json5.hpp`](include/ctjson5/json5.hpp)), which CTLL — the compile-time
 LL parser from CTRE — walks character by character. Semantic actions
-([`actions.hpp`](include/ctjson/actions.hpp)) build the document on a
+([`actions.hpp`](include/ctjson5/actions.hpp)) build the document on a
 type stack: strings and numbers accumulate as they are read, objects
 and arrays collect their content when they close.
 
@@ -183,28 +204,28 @@ Header-only. Pick whichever fits your project:
 **CMake, as a subdirectory or via FetchContent:**
 
 ```cmake
-add_subdirectory(compile-time-json)   # or FetchContent_MakeAvailable(ctjson)
-target_link_libraries(your-target PRIVATE ctjson::ctjson)
+add_subdirectory(compile-time-json5)   # or FetchContent_MakeAvailable(ctjson5)
+target_link_libraries(your-target PRIVATE ctjson5::ctjson5)
 ```
 
 **CMake, installed** (`cmake -B build && cmake --install build`):
 
 ```cmake
-find_package(ctjson 0.1 REQUIRED)
-target_link_libraries(your-target PRIVATE ctjson::ctjson)
+find_package(ctjson5 0.1 REQUIRED)
+target_link_libraries(your-target PRIVATE ctjson5::ctjson5)
 ```
 
-The install also ships a `pkg-config` file (`ctjson.pc`). Tests and
-examples build only when ctjson is the top-level project
-(`CTJSON_BUILD_TESTS`, `CTJSON_BUILD_EXAMPLES`); `CTJSON_CXX_STANDARD`
+The install also ships a `pkg-config` file (`ctjson5.pc`). Tests and
+examples build only when ctjson5 is the top-level project
+(`CTJSON5_BUILD_TESTS`, `CTJSON5_BUILD_EXAMPLES`); `CTJSON5_CXX_STANDARD`
 selects the advertised standard (default 20). CPack can produce
 TGZ/ZIP archives (plus DEB/RPM where the tooling exists), and
-`-DCTJSON_MODULE=ON` builds `ctjson.cppm` as a named C++ module
+`-DCTJSON5_MODULE=ON` builds `ctjson5.cppm` as a named C++ module
 (experimental; needs CMake 3.30+, a modules-capable toolchain and
 `import std`).
 
 **No build system:** add `include/` to your include path, or copy the
-amalgamated [`single-header/ctjson.hpp`](single-header/ctjson.hpp)
+amalgamated [`single-header/ctjson5.hpp`](single-header/ctjson5.hpp)
 (regenerate with `make single-header`, which needs the
 [quom](https://pypi.org/project/quom/) tool).
 

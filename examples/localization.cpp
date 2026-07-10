@@ -6,11 +6,11 @@
 //
 // Build: make localization
 
-#include <ctjson.hpp>
+#include <ctjson5.hpp>
 #include <iostream>
 #include <string_view>
 
-constexpr auto catalog = ctjson::parse<R"({
+constexpr auto catalog = ctjson5::parse<R"({
 	"en": {
 		"greeting":  "Hello",
 		"farewell":  "Goodbye",
@@ -49,7 +49,7 @@ int main() {
 
 	// iterate a whole language at runtime
 	std::cout << "english catalog:\n";
-	ctjson::for_each(catalog.get<"en">(), [](auto key, auto value) {
+	ctjson5::for_each(catalog.get<"en">(), [](auto key, auto value) {
 		std::cout << "  " << key.view() << " = " << value.view() << "\n";
 	});
 }

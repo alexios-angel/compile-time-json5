@@ -5,12 +5,12 @@
 //
 // Build: make tables
 
-#include <ctjson.hpp>
+#include <ctjson5.hpp>
 #include <array>
 #include <iostream>
 #include <string_view>
 
-constexpr auto materials = ctjson::parse<R"([
+constexpr auto materials = ctjson5::parse<R"([
 	{"name": "aluminium", "density": 2.70,  "melting_point": 933},
 	{"name": "iron",      "density": 7.87,  "melting_point": 1811},
 	{"name": "copper",    "density": 8.96,  "melting_point": 1358},

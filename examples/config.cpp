@@ -5,17 +5,20 @@
 //
 // Build: make config
 
-#include <ctjson.hpp>
+#include <ctjson5.hpp>
 #include <iostream>
 
-constexpr auto config = ctjson::parse<R"({
-	"app": {
-		"name":    "demo",
-		"workers": 8,
-		"timeout": 2.5
+constexpr auto config = ctjson5::parse<R"({
+	// this is JSON5: comments, unquoted keys, single quotes,
+	// hex numbers and trailing commas are all part of the language
+	app: {
+		name:    'demo',
+		workers: 8,
+		timeout: 2.5,   // seconds
 	},
-	"features": ["search", "export"],
-	"debug":    false
+	features: ['search', 'export'],
+	flags:    0x2A,
+	debug:    false,
 })">();
 
 // requirements checked at build time
@@ -31,6 +34,7 @@ int main() {
 	std::cout << "workers:  " << config.get<"app">().get<"workers">().to<int>()
 	          << " (slots: " << sizeof(worker_slots) / sizeof(int) << ")\n";
 	std::cout << "timeout:  " << config.get<"app">().get<"timeout">().to<double>() << "s\n";
+	std::cout << "flags:    0x" << std::hex << config.get<"flags">().to<int>() << std::dec << "\n";
 	std::cout << "debug:    " << (config.get<"debug">() ? "on" : "off") << "\n";
 
 	std::cout << "features:";

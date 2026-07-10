@@ -5,7 +5,7 @@
 //
 // Build: make introspection
 
-#include <ctjson.hpp>
+#include <ctjson5.hpp>
 #include <iostream>
 
 template <typename Node> void print(Node node, int indent = 0);
@@ -23,7 +23,7 @@ template <typename Array, std::size_t... Is> void print_elements(Array, int inde
 }
 
 template <typename Node> void print(Node node, int indent) {
-	if constexpr (Node::type == ctjson::kind::object) {
+	if constexpr (Node::type == ctjson5::kind::object) {
 		if constexpr (Node::empty()) {
 			std::cout << "{}";
 		} else {
@@ -31,7 +31,7 @@ template <typename Node> void print(Node node, int indent) {
 			print_members(node, indent, std::make_index_sequence<Node::size()>{});
 			std::cout << std::string(static_cast<size_t>(indent), ' ') << "}";
 		}
-	} else if constexpr (Node::type == ctjson::kind::array) {
+	} else if constexpr (Node::type == ctjson5::kind::array) {
 		if constexpr (Node::empty()) {
 			std::cout << "[]";
 		} else {
@@ -39,19 +39,19 @@ template <typename Node> void print(Node node, int indent) {
 			print_elements(node, indent, std::make_index_sequence<Node::size()>{});
 			std::cout << std::string(static_cast<size_t>(indent), ' ') << "]";
 		}
-	} else if constexpr (Node::type == ctjson::kind::string) {
+	} else if constexpr (Node::type == ctjson5::kind::string) {
 		std::cout << '"' << Node::view() << '"';
-	} else if constexpr (Node::type == ctjson::kind::number) {
+	} else if constexpr (Node::type == ctjson5::kind::number) {
 		std::cout << Node::view();
-	} else if constexpr (Node::type == ctjson::kind::boolean) {
+	} else if constexpr (Node::type == ctjson5::kind::boolean) {
 		std::cout << (node ? "true" : "false");
 	} else {
 		std::cout << "null";
 	}
 }
 
-constexpr auto doc = ctjson::parse<R"({
-	"library": "ctjson",
+constexpr auto doc = ctjson5::parse<R"({
+	"library": "ctjson5",
 	"constexpr": true,
 	"depths": [1, [2, [3]]],
 	"empty_things": {"o": {}, "a": []},
