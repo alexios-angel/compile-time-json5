@@ -6,6 +6,10 @@ TARGETS := $(SOURCES:%.cpp=%)
 
 all: $(TARGETS)
 
+# built in C++17 mode on purpose, to demonstrate the C++17 API
+cxx17-syntax: cxx17-syntax.cpp
+	$(CXX) -std=c++17 -I../include -O2 -Wall -Wextra $< -o $@
+
 %: %.cpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
