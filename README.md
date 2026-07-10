@@ -1,4 +1,7 @@
-> **Attribution:** this library is built on the CTLL compile-time LL(1)
+> **Fork notice:** this repository is a fork of
+> [compile-time-json](https://github.com/alexios-angel/compile-time-json)
+> (full history preserved), being rewritten for
+> [JSON5](https://json5.org/). Built on the CTLL compile-time LL(1)
 > parser from [CTRE](https://github.com/hanickadot/compile-time-regular-expressions)
 > by Hana Dusíková, via the [notre](https://github.com/alexios-angel/notre)
 > fork. Apache License 2.0 with LLVM Exceptions; see [NOTICE](NOTICE).

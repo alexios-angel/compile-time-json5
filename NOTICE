@@ -1,5 +1,6 @@
-This repository ("compile-time-json" / ctjson) is a derivative work
-built on:
+This repository ("compile-time-json5") is a fork of compile-time-json
+(https://github.com/alexios-angel/compile-time-json, history
+preserved), which is a derivative work built on:
 
     notre (a fork of Compile Time Regular Expressions)
     https://github.com/alexios-angel/notre
