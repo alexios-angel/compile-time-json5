@@ -48,13 +48,27 @@ template <ctll::fixed_string input> constexpr auto ctjson::parse();
 |------|-----------|
 | `object<members...>` | `get<"key">()`, `contains<"key">()`, `size()`, `empty()`, positional `key<N>()` / `value<N>()` |
 | `array<values...>` | `get<N>()`, `size()`, `empty()` |
-| `string<chars...>` | `view()`, `size()`, `empty()`, `==` with `std::string_view` |
-| `number<chars...>` | `to<T>()` for any arithmetic `T`, `is_integer()`, `view()` (raw spelling) |
+| `string<chars...>` | `view()`, `c_str()` (null-terminated), `size()`, `empty()`, `==` with `std::string_view` |
+| `number<chars...>` | `to<T>()` for any arithmetic `T`, `is_integer()`, `view()` (raw spelling), `c_str()` |
 | `boolean<B>` | `value`, `operator bool` |
 | `null` | — |
 
 Every type carries `static constexpr ctjson::kind type` for
 introspection (`kind::object`, `kind::array`, ...).
+
+Two free functions round out the API:
+
+```c++
+// render any document value back to minified JSON, in static storage:
+static_assert(ctjson::serialize(ctjson::parse<R"({ "a" : [ 1, 2 ] })">()) == R"({"a":[1,2]})");
+
+// compile-time iteration (elements, or key/value pairs):
+ctjson::for_each(doc.get<"tags">(), [](auto value) { /* each has its own type */ });
+ctjson::for_each(doc, [](auto key, auto value) { ... });
+```
+
+`serialize` re-emits strings with the mandatory escapes and numbers with
+the spelling they were parsed with; the result is null-terminated.
 
 Details:
 
@@ -96,21 +110,48 @@ and arrays collect their content when they close.
 
 Regenerate the table after editing the grammar with `make regrammar`.
 
-## Building
+## Building and integrating
 
-Header-only: add `include/` to your include path and `#include
-<ctjson.hpp>` — or copy the amalgamated
-[`single-header/ctjson.hpp`](single-header/ctjson.hpp) into your
-project (regenerate it with `make single-header`, which needs the
-[quom](https://pypi.org/project/quom/) tool). Requires C++17 (C++20 for
-the string-literal API). Runnable demos live in
-[`examples/`](examples/).
+Header-only. Pick whichever fits your project:
+
+**CMake, as a subdirectory or via FetchContent:**
+
+```cmake
+add_subdirectory(compile-time-json)   # or FetchContent_MakeAvailable(ctjson)
+target_link_libraries(your-target PRIVATE ctjson::ctjson)
+```
+
+**CMake, installed** (`cmake -B build && cmake --install build`):
+
+```cmake
+find_package(ctjson 0.1 REQUIRED)
+target_link_libraries(your-target PRIVATE ctjson::ctjson)
+```
+
+The install also ships a `pkg-config` file (`ctjson.pc`). Tests and
+examples build only when ctjson is the top-level project
+(`CTJSON_BUILD_TESTS`, `CTJSON_BUILD_EXAMPLES`); `CTJSON_CXX_STANDARD`
+selects the advertised standard (default 20). CPack can produce
+TGZ/ZIP archives (plus DEB/RPM where the tooling exists), and
+`-DCTJSON_MODULE=ON` builds `ctjson.cppm` as a named C++ module
+(experimental; needs CMake 3.30+, a modules-capable toolchain and
+`import std`).
+
+**No build system:** add `include/` to your include path, or copy the
+amalgamated [`single-header/ctjson.hpp`](single-header/ctjson.hpp)
+(regenerate with `make single-header`, which needs the
+[quom](https://pypi.org/project/quom/) tool).
+
+Requires C++17 (C++20 for the string-literal API). Runnable demos live
+in [`examples/`](examples/).
 
 Run the tests (compilation is the test — the suite is `static_assert`s):
 
 ```bash
-make CXX=clang++             # C++20
+make CXX=clang++                       # C++20
 make CXX=clang++ CXX_STANDARD=17
+# or through CMake/CTest:
+cmake -B build && cmake --build build && ctest --test-dir build
 ```
 
 ## License

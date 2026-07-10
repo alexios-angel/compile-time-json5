@@ -19,7 +19,7 @@
 
 namespace ctjson {
 
-enum class kind {
+CTLL_EXPORT enum class kind {
 	object,
 	array,
 	string,
@@ -30,10 +30,15 @@ enum class kind {
 
 // --- string
 
-template <auto... Chars> struct string {
+CTLL_EXPORT template <auto... Chars> struct string {
 	static constexpr kind type = kind::string;
 
-	static constexpr char storage[sizeof...(Chars) == 0 ? 1 : sizeof...(Chars)]{static_cast<char>(Chars)...};
+	// null-terminated so c_str()/data() work as C strings; size() excludes it
+	static constexpr char storage[sizeof...(Chars) + 1]{static_cast<char>(Chars)..., '\0'};
+
+	static constexpr const char * c_str() noexcept {
+		return storage;
+	}
 
 	static constexpr size_t size() noexcept {
 		return sizeof...(Chars);
@@ -60,10 +65,15 @@ template <auto... Chars> struct string {
 
 // --- number (raw spelling, converted on demand)
 
-template <auto... Chars> struct number {
+CTLL_EXPORT template <auto... Chars> struct number {
 	static constexpr kind type = kind::number;
 
-	static constexpr char storage[sizeof...(Chars) == 0 ? 1 : sizeof...(Chars)]{static_cast<char>(Chars)...};
+	// null-terminated so c_str() works as a C string; view() excludes it
+	static constexpr char storage[sizeof...(Chars) + 1]{static_cast<char>(Chars)..., '\0'};
+
+	static constexpr const char * c_str() noexcept {
+		return storage;
+	}
 
 	static constexpr std::string_view view() noexcept {
 		return std::string_view{storage, sizeof...(Chars)};
@@ -132,7 +142,7 @@ template <auto... Chars> struct number {
 
 // --- boolean and null
 
-template <bool Value> struct boolean {
+CTLL_EXPORT template <bool Value> struct boolean {
 	static constexpr kind type = kind::boolean;
 	static constexpr bool value = Value;
 	constexpr operator bool() const noexcept {
@@ -140,13 +150,13 @@ template <bool Value> struct boolean {
 	}
 };
 
-struct null {
+CTLL_EXPORT struct null {
 	static constexpr kind type = kind::null;
 };
 
 // --- array
 
-template <typename... Values> struct array {
+CTLL_EXPORT template <typename... Values> struct array {
 	static constexpr kind type = kind::array;
 
 	static constexpr size_t size() noexcept {
@@ -173,12 +183,12 @@ private:
 
 // --- object
 
-template <typename Key, typename Value> struct member {
+CTLL_EXPORT template <typename Key, typename Value> struct member {
 	using key_type = Key;
 	using value_type = Value;
 };
 
-template <typename... Members> struct object {
+CTLL_EXPORT template <typename... Members> struct object {
 	static constexpr kind type = kind::object;
 
 	static constexpr size_t size() noexcept {
@@ -258,6 +268,16 @@ private:
 		}
 	}
 };
+
+// compile-time iteration: the callable is invoked once per element
+// (arrays) or once per key/value pair (objects), each with its own type
+CTLL_EXPORT template <typename F, typename... Values> constexpr void for_each(array<Values...>, F && f) {
+	(f(Values{}), ...);
+}
+
+CTLL_EXPORT template <typename F, typename... Members> constexpr void for_each(object<Members...>, F && f) {
+	(f(typename Members::key_type{}, typename Members::value_type{}), ...);
+}
 
 } // namespace ctjson
 

@@ -5,6 +5,7 @@
 #include "ctjson/json.hpp"
 #include "ctjson/types.hpp"
 #include "ctjson/actions.hpp"
+#include "ctjson/serialize.hpp"
 
 // ctjson: compile-time JSON.
 //

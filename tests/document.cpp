@@ -102,4 +102,35 @@ static_assert(ctjson::parse<"[true,false,null]">().size() == 3);
 // duplicate keys are legal per RFC; get finds the first
 static_assert(ctjson::parse<R"({"k":1,"k":2})">().get<"k">().to<int>() == 1);
 
+// --- serialization: any document renders back to minified JSON
+static_assert(ctjson::serialize(ctjson::parse<R"({ "a" : [ 1, 2 ] , "b" : null })">()) == R"({"a":[1,2],"b":null})"sv);
+static_assert(ctjson::serialize(ctjson::parse<"[]">()) == "[]"sv);
+static_assert(ctjson::serialize(ctjson::parse<"{}">()) == "{}"sv);
+static_assert(ctjson::serialize(ctjson::parse<"-2.5e-1">()) == "-2.5e-1"sv); // raw spelling kept
+static_assert(ctjson::serialize(ctjson::parse<"[true,false]">()) == "[true,false]"sv);
+// escapes are re-emitted: named ones by name, other controls as \u00XX
+static_assert(ctjson::serialize(ctjson::parse<R"("a\nb\"q\"")">()) == R"("a\nb\"q\"")"sv);
+// multi-byte utf-8 passes through
+static_assert(ctjson::serialize(ctjson::parse<R"(["caf\u00e9"])">()) == "[\"caf\xc3\xa9\"]"sv);
+// round-trip: parse(serialize(x)) is the same type as x
+constexpr auto rt = ctjson::parse<R"({"n":[1,{"d":true}]})">();
+static_assert(std::is_same_v<decltype(ctjson::parse<ctll::fixed_string{R"({"n":[1,{"d":true}]})"}>()), std::remove_const_t<decltype(rt)>>);
+
+// --- iteration
+static_assert([] {
+	long long sum = 0;
+	ctjson::for_each(ctjson::parse<"[1,2,3,4]">(), [&](auto v) { sum += v.template to<long long>(); });
+	return sum;
+}() == 10);
+static_assert([] {
+	size_t keys = 0, numbers = 0;
+	ctjson::for_each(ctjson::parse<R"({"a":1,"b":"x","c":2})">(), [&](auto key, auto value) {
+		keys += key.size();
+		if constexpr (decltype(value)::type == ctjson::kind::number) {
+			++numbers;
+		}
+	});
+	return keys * 10 + numbers;
+}() == 32);
+
 #endif
