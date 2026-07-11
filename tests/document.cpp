@@ -250,4 +250,39 @@ static_assert(ctjson5::begin(ctjson5::parse<"[]">()) == ctjson5::end(ctjson5::pa
 
 } // namespace bracket_tests
 
+// --- diagnostics: error_info, error_message, bind_error, debug tools
+
+// valid documents report nothing
+static_assert(ctjson5::error_info<"[1, 2, 3,]">().ok());
+static_assert(ctjson5::error_message<"[1, 2, 3,]">() == ""sv);
+
+// a doubled comma: kind, offset, line, column and the expected tokens
+constexpr auto double_comma = ctjson5::error_info<"[1,,2]">();
+static_assert(double_comma.kind == ctlark::error_kind::lex);
+static_assert(double_comma.position == 3 && double_comma.line == 1 && double_comma.column == 4);
+static_assert(double_comma.expected_count == 8); // JSON5 also allows ']' here
+static_assert(ctjson5::error_message<"[1,,2]">() ==
+              "ctlark: lexical error at line 1, column 4: no expected terminal matches\n"
+              "  [1,,2]\n"
+              "     ^\n"
+              "expected: STRING, NUMBER, 'true', 'false', 'null', '{', '[', ']'"sv);
+
+// the binder names the string that breaks the surrogate rules
+constexpr auto surrogate = ctjson5::bind_error<R"({k: '\uDC00'})">();
+static_assert(surrogate.reason == ctjson5::bind_reason::bad_surrogate);
+static_assert(surrogate.where == R"('\uDC00')"sv);
+static_assert(ctjson5::bind_error<R"({k: 'fine'})">().ok());
+
+// the ctlark debugging toolbox with the JSON5 grammar baked in
+static_assert(ctjson5::debug::dump_tokens<"{a: 1}">() ==
+              "LBRACE '{' @0..1\n"
+              "IDENT 'a' @1..2\n"
+              "COLON ':' @2..3\n"
+              "NUMBER '1' @4..5\n"
+              "RBRACE '}' @5..6\n"sv);
+constexpr auto traced = ctjson5::debug::traced_parse<"[1,,2]">();
+static_assert(!traced.ok && traced.error.kind == ctlark::error_kind::lex);
+static_assert(traced.log.events > 0);
+static_assert(ctjson5::debug::dump_grammar().find("pair:") != std::string_view::npos);
+
 #endif

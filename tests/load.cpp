@@ -99,12 +99,21 @@ int main() {
 	assert(!ctjson5::loads(R"("\1")").has_value());
 	assert(!ctjson5::loads("\"raw\nnewline\"").has_value());
 
-	// error reporting carries the byte offset
+	// error reporting carries the byte offset, line and column
 	{
 		ctjson5::load_error error;
 		assert(!ctjson5::loads("[1, 2, }", error).has_value());
 		assert(error.position == 7);
 		assert(error.message[0] != '\0');
+		assert(error.line == 1 && error.column == 8);
+	}
+	{
+		ctjson5::load_error error;
+		assert(!ctjson5::loads("[1,\n 2, }", error).has_value());
+		assert(error.line == 2 && error.column == 5);
+		const std::string rendered = ctjson5::to_string(error);
+		assert(rendered.rfind("line 2, column 5: ", 0) == 0);
+		assert(rendered.size() > sizeof("line 2, column 5: "));
 	}
 
 	// deep nesting is rejected, not a stack overflow

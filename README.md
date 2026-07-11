@@ -103,6 +103,38 @@ The records are `value_view` and `member_view`
 ([`views.hpp`](include/ctjson5/views.hpp)), and
 [`examples/iteration.cpp`](examples/iteration.cpp) is a runnable tour.
 
+## Debugging
+
+When `is_valid` says `false`, the reason is one query away, computed at
+compile time:
+
+```c++
+constexpr auto info = ctjson5::error_info<"[1,,2]">();
+// info.kind (lex/parse/...), info.position, info.line, info.column,
+// info.expected[0..expected_count)
+
+constexpr auto why = ctjson5::error_message<"[1,,2]">();
+//   ctlark: lexical error at line 1, column 4: no expected terminal matches
+//     [1,,2]
+//        ^
+//   expected: STRING, NUMBER, 'true', 'false', 'null', '{', '[', ']'
+
+// documents that PARSE can still break the \u surrogate rules; the
+// binder names the offending string:
+constexpr auto be = ctjson5::bind_error<R"(['\uDC00'])">();
+// be.reason == ctjson5::bind_reason::bad_surrogate, be.where == R"('\uDC00')"
+```
+
+A failed `parse<>()` names the failing stage and the query to run in its
+`static_assert` message. `ctjson5::debug` bundles the [ctlark debugging
+toolbox](../compile-time-lark#debugging) with the JSON5 grammar baked
+in: `traced_parse<input>()` (a recorded event log, also runnable at
+runtime under a debugger), `parse_runtime(text)` (runtime inputs
+against the compile-time tables), `dump_tokens<input>()` and
+`dump_grammar()`. The runtime `loads`/`load` errors carry
+`line`/`column` alongside `position`, and `to_string(load_error)`
+renders them.
+
 ## Python-style runtime API
 
 `ctjson5::dumps` is `json.dumps` for ordinary C++ values — and it is
