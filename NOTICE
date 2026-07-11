@@ -31,3 +31,10 @@ include/ctjson/json.gram by Tablewright
 Attribution for the parser architecture and the CTLL engine belongs to
 Hana Dusikova; this file preserves it as required by Section 4(c) of
 the Apache License 2.0.
+
+The grammar layer is ctlark
+(https://github.com/alexios-angel/compile-time-lark), vendored under
+include/ctlark/: the JSON5 grammar is written in the Lark grammar
+language, designed by Erez Shinan and the lark-parser project
+(https://github.com/lark-parser/lark, MIT license); see ctlark's
+NOTICE for the full lineage.

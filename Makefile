@@ -1,4 +1,4 @@
-.PHONY: default all clean grammar regrammar single-header single-header/ctjson5.hpp
+.PHONY: default all clean grammar regrammar pch single-header single-header/ctjson5.hpp
 
 default: all
 
@@ -10,7 +10,25 @@ PYTHON := python3
 # (needs python3 with the lark package)
 TABLEWRIGHT := tablewright
 
-override CXXFLAGS := $(CXXFLAGS) -std=c++$(CXX_STANDARD) -Iinclude -O3 -pedantic -Wall -Wextra -Werror -Wconversion
+# Earley at compile time needs more constexpr budget than the defaults
+CXX_IS_CLANG := $(shell $(CXX) --version 2>/dev/null | grep -qi clang && echo yes)
+ifeq ($(CXX_IS_CLANG),yes)
+CONSTEXPR_FLAGS := -fconstexpr-steps=500000000 -fconstexpr-depth=1024
+else
+CONSTEXPR_FLAGS := -fconstexpr-ops-limit=3000000000 -fconstexpr-loop-limit=10000000 -fconstexpr-depth=1024
+endif
+
+override CXXFLAGS := $(CXXFLAGS) -std=c++$(CXX_STANDARD) -Iinclude $(CONSTEXPR_FLAGS) -O2 -pedantic -Wall -Wextra -Werror -Wconversion
+
+# precompiled header: parsing the JSON5 grammar text and compiling its
+# tables happens once here instead of once per translation unit
+ifeq ($(CXX_IS_CLANG),yes)
+PCH := ctjson5.pch
+PCH_USE = -include-pch $(PCH)
+else
+PCH := include/ctjson5.hpp.gch
+PCH_USE =
+endif
 
 TESTS := $(wildcard tests/*.cpp)
 OBJECTS := $(TESTS:%.cpp=%.o)
@@ -18,23 +36,29 @@ DEPENDENCY_FILES := $(OBJECTS:%.o=%.d)
 
 all: $(OBJECTS)
 
-$(OBJECTS): %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
+$(OBJECTS): %.o: %.cpp $(PCH)
+	$(CXX) $(CXXFLAGS) $(PCH_USE) -MMD -c $< -o $@
+
+pch: $(PCH)
+
+$(PCH): include/ctjson5.hpp
+	$(CXX) $(CXXFLAGS) -x c++-header $< -o $@
 
 -include $(DEPENDENCY_FILES)
 
 clean:
-	rm -f $(OBJECTS) $(DEPENDENCY_FILES)
+	rm -f $(OBJECTS) $(DEPENDENCY_FILES) ctjson5.pch include/ctjson5.hpp.gch
 
-grammar: include/ctjson5/json5.hpp
+# the only generated table left is ctlark's own grammar-of-grammars
+grammar: include/ctlark/lark.hpp
 
 regrammar:
-	@rm -f include/ctjson5/json5.hpp
+	@rm -f include/ctlark/lark.hpp
 	@$(MAKE) grammar
 
-include/ctjson5/json5.hpp: include/ctjson5/json5.gram
+include/ctlark/lark.hpp: include/ctlark/lark.gram
 	@echo "LL1q $<"
-	@$(TABLEWRIGHT) --ll --q --input=include/ctjson5/json5.gram --output=include/ctjson5/ --generator=cpp_ctll_v2 --cfg:fname=json5.hpp --cfg:namespace=ctjson5 --cfg:guard=CTJSON5__JSON5__HPP --cfg:grammar_name=json5
+	@$(TABLEWRIGHT) --ll --q --input=include/ctlark/lark.gram --output=include/ctlark/ --generator=cpp_ctll_v2 --cfg:fname=lark.hpp --cfg:namespace=ctlark --cfg:guard=CTLARK__LARK__HPP --cfg:grammar_name=lark_grammar
 
 # needs python3 with the quom package
 single-header: single-header/ctjson5.hpp

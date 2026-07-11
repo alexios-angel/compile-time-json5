@@ -42,14 +42,35 @@ cmake_dependent_option(CTJSON5_BUILD_PACKAGE_RPM
   "CTJSON5_BUILD_PACKAGE;CTJSON5_RPMBUILD_FOUND" OFF)
 
 option(CTJSON5_MODULE "build C++ module (experimental)" OFF)
+# the ctlark grammar layer runs an Earley parse in the constant
+# evaluator; the interface carries the raised limits so consumers do
+# not have to know the flags
+option(CTJSON5_CONSTEXPR_LIMITS "Raise constexpr evaluation limits on the interface" ON)
+option(CTJSON5_PCH "Precompile ctjson5.hpp for tests and examples" ON)
+
+set(CTJSON5_CONSTEXPR_OPTIONS
+  $<$<CXX_COMPILER_ID:Clang,AppleClang>:-fconstexpr-steps=500000000;-fconstexpr-depth=1024>
+  $<$<CXX_COMPILER_ID:GNU>:-fconstexpr-ops-limit=3000000000;-fconstexpr-loop-limit=10000000;-fconstexpr-depth=1024>
+  $<$<CXX_COMPILER_ID:MSVC>:/constexpr:steps500000000;/constexpr:depth1024>)
 
 set(CTJSON5_HEADERS
 	include/ctjson5.hpp
-	include/ctjson5/actions.hpp
-	include/ctjson5/json5.hpp
+	include/ctjson5/bind.hpp
+	include/ctjson5/dumps.hpp
+	include/ctjson5/grammar.hpp
 	include/ctjson5/load.hpp
 	include/ctjson5/serialize.hpp
 	include/ctjson5/types.hpp
+	include/ctlark.hpp
+	include/ctlark/actions.hpp
+	include/ctlark/ast.hpp
+	include/ctlark/common.hpp
+	include/ctlark/compile.hpp
+	include/ctlark/earley.hpp
+	include/ctlark/lark.hpp
+	include/ctlark/lift.hpp
+	include/ctlark/text.hpp
+	include/ctlark/tree.hpp
 	include/ctll.hpp
 	include/ctll/actions.hpp
 	include/ctll/fixed_string.hpp
@@ -73,6 +94,9 @@ if(CTJSON5_MODULE)
 		endif()
 
 		target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_${CTJSON5_CXX_STANDARD})
+		if(CTJSON5_CONSTEXPR_LIMITS)
+			target_compile_options(${PROJECT_NAME} PUBLIC ${CTJSON5_CONSTEXPR_OPTIONS})
+		endif()
 
 		install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}-targets
 			FILE_SET CXX_MODULES DESTINATION "${CMAKE_INSTALL_LIBDIR}/cxx/${PROJECT_NAME}"
@@ -92,6 +116,9 @@ else()
 	endif()
 
 	target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_${CTJSON5_CXX_STANDARD})
+	if(CTJSON5_CONSTEXPR_LIMITS)
+		target_compile_options(${PROJECT_NAME} INTERFACE ${CTJSON5_CONSTEXPR_OPTIONS})
+	endif()
 	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_SCAN_FOR_MODULES 0)
 
 	install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}-targets)
