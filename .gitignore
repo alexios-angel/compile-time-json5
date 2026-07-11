@@ -3,3 +3,4 @@
 build/
 *.pch
 *.gch
+build-clang
