@@ -183,3 +183,64 @@ static_assert([] {
 }() == 32);
 
 #endif
+
+// --- operator[] and iterators (see include/ctjson5/views.hpp)
+
+#if CTLL_CNTTP_COMPILER_CHECK
+
+namespace bracket_tests {
+
+using namespace ctjson5::literals;
+
+constexpr auto d = ctjson5::parse<R"({name: 'Hana', tags: ['regex', 'ct'], n: 0x2A,})">();
+
+// [] is get, with the key or index carried in the argument's type
+static_assert(d["name"_k] == "Hana"sv);
+static_assert(d["tags"_k][1_i] == "ct"sv);
+static_assert(d["n"_k].to<int>() == 42);
+
+// keys handed out by for_each work as [] arguments too
+static_assert([] {
+	size_t named = 0;
+	ctjson5::for_each(d, [&](auto key, auto value) {
+		if (d[key].type == decltype(value)::type) {
+			++named;
+		}
+	});
+	return named;
+}() == 3);
+
+// begin/end yield uniform views from static storage: range-for works,
+// in constexpr evaluation included
+static_assert([] {
+	size_t key_chars = 0;
+	for (const auto & m : d) {
+		key_chars += m.key.size();
+	}
+	return key_chars;
+}() == 4 + 4 + 1);
+
+static_assert([] {
+	for (const auto & m : d) {
+		if (m.key == "tags") {
+			// nested containers view their minified serialization
+			return m.value.type == ctjson5::kind::array && m.value.text == R"(["regex","ct"])";
+		}
+	}
+	return false;
+}());
+
+// scalar views: numbers keep their spelling, booleans and null their literals
+static_assert([] {
+	constexpr auto arr = ctjson5::parse<"[.5, Infinity, true, null]">();
+	auto it = ctjson5::begin(arr);
+	return it[0].text == ".5" && it[1].text == "Infinity" && it[2].text == "true"
+	    && it[3].text == "null" && it[1].type == ctjson5::kind::number;
+}());
+
+// empty containers iterate zero times
+static_assert(ctjson5::begin(ctjson5::parse<"[]">()) == ctjson5::end(ctjson5::parse<"[]">()));
+
+} // namespace bracket_tests
+
+#endif

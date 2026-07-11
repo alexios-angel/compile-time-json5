@@ -6,6 +6,7 @@
 #include "ctjson5/types.hpp"
 #include "ctjson5/bind.hpp"
 #include "ctjson5/serialize.hpp"
+#include "ctjson5/views.hpp"
 #include "ctjson5/dumps.hpp"
 #include "ctjson5/load.hpp"
 
