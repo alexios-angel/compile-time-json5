@@ -235,7 +235,7 @@ target carries the compiler-specific limit flags automatically
 (`CTJSON5_CONSTEXPR_LIMITS`, default ON) and the Makefiles set them:
 
 ```
-clang:  -fconstexpr-steps=500000000 -fconstexpr-depth=1024
+clang:  -fconstexpr-steps=500000000 -fconstexpr-depth=1024 -fbracket-depth=2048
 gcc:    -fconstexpr-ops-limit=3000000000 -fconstexpr-loop-limit=10000000 -fconstexpr-depth=1024
 ```
 

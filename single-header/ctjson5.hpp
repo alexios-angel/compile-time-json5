@@ -24340,12 +24340,9 @@ CTLL_EXPORT template <typename Traits, size_t N> std::basic_ostream<char, Traits
 // parameters - so the values here are empty structs whose accessors are
 // all constexpr and static.
 //
-// String content is stored as UTF-8 bytes (double-quote escapes,
-// \uXXXX and \UXXXXXXXX included, are decoded during parsing); numbers
-// keep their raw spelling - decimal, hex, octal, float or .inf/.nan -
-// and convert on demand. Mapping keys are strings: JSON's tag
-// resolution is applied to values, not keys, so `get<"true">()` finds
-// the key spelled true.
+// String content is stored as UTF-8 bytes (escapes, including \uXXXX
+// and surrogate pairs, are decoded during parsing); numbers keep their
+// raw spelling - decimal, hex, Infinity/NaN - and convert on demand.
 
 namespace ctjson5 {
 
@@ -24360,9 +24357,9 @@ CTLL_EXPORT enum class kind {
 
 namespace detail {
 
-// the conversion behind number::to and value_view::to: JSON
-// spellings - sign, Infinity/NaN, hex, decimal with
-// fraction and exponent - parsed from their text
+// the conversion behind number::to and value_view::to: JSON5
+// spellings - sign, Infinity/NaN, 0x/0X hex, decimal with fraction
+// and exponent - parsed from their text
 template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept {
 		size_t i = 0;
 		bool negative = false;
@@ -24382,9 +24379,8 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				                : std::numeric_limits<T>::infinity();
 			}
 		}
-		// hex and octal integers
-		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'o')) {
-			const unsigned base = text[i + 1] == 'x' ? 16u : 8u;
+		// hexadecimal (JSON5): 0x / 0X followed by hex digits
+		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'X')) {
 			unsigned long long value = 0;
 			for (size_t k = i + 2; k < text.size(); ++k) {
 				const char c = text[k];
@@ -24396,7 +24392,7 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				} else {
 					digit = static_cast<unsigned>(c - 'A') + 10u;
 				}
-				value = value * base + digit;
+				value = value * 16u + digit;
 			}
 			return static_cast<T>(negative ? -static_cast<long long>(value) : static_cast<long long>(value));
 		}
@@ -24485,7 +24481,7 @@ CTLL_EXPORT template <auto... Chars> struct string {
 	}
 };
 
-// --- number (raw spelling, converted on demand; JSON schema)
+// --- number (raw spelling, converted on demand; JSON5 spellings)
 
 CTLL_EXPORT template <auto... Chars> struct number {
 	static constexpr kind type = kind::number;
@@ -24506,8 +24502,9 @@ CTLL_EXPORT template <auto... Chars> struct number {
 		if (text.find("Infinity") != std::string_view::npos || text.find("NaN") != std::string_view::npos) {
 			return false;
 		}
-		// hex and octal are integers whatever letters they contain
-		if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'o')) {
+		// hex (0x / 0X, sign included) is an integer whatever letters it has
+		const size_t start = (text[0] == '-' || text[0] == '+') ? 1 : 0;
+		if (text.size() >= start + 2 && text[start] == '0' && (text[start + 1] == 'x' || text[start + 1] == 'X')) {
 			return true;
 		}
 		for (const char c : text) {
@@ -37160,12 +37157,9 @@ CTLL_EXPORT template <typename Traits, size_t N> std::basic_ostream<char, Traits
 // parameters - so the values here are empty structs whose accessors are
 // all constexpr and static.
 //
-// String content is stored as UTF-8 bytes (double-quote escapes,
-// \uXXXX and \UXXXXXXXX included, are decoded during parsing); numbers
-// keep their raw spelling - decimal, hex, octal, float or .inf/.nan -
-// and convert on demand. Mapping keys are strings: JSON's tag
-// resolution is applied to values, not keys, so `get<"true">()` finds
-// the key spelled true.
+// String content is stored as UTF-8 bytes (escapes, including \uXXXX
+// and surrogate pairs, are decoded during parsing); numbers keep their
+// raw spelling - decimal, hex, Infinity/NaN - and convert on demand.
 
 namespace ctjson5 {
 
@@ -37180,9 +37174,9 @@ CTLL_EXPORT enum class kind {
 
 namespace detail {
 
-// the conversion behind number::to and value_view::to: JSON
-// spellings - sign, Infinity/NaN, hex, decimal with
-// fraction and exponent - parsed from their text
+// the conversion behind number::to and value_view::to: JSON5
+// spellings - sign, Infinity/NaN, 0x/0X hex, decimal with fraction
+// and exponent - parsed from their text
 template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept {
 		size_t i = 0;
 		bool negative = false;
@@ -37202,9 +37196,8 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				                : std::numeric_limits<T>::infinity();
 			}
 		}
-		// hex and octal integers
-		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'o')) {
-			const unsigned base = text[i + 1] == 'x' ? 16u : 8u;
+		// hexadecimal (JSON5): 0x / 0X followed by hex digits
+		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'X')) {
 			unsigned long long value = 0;
 			for (size_t k = i + 2; k < text.size(); ++k) {
 				const char c = text[k];
@@ -37216,7 +37209,7 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				} else {
 					digit = static_cast<unsigned>(c - 'A') + 10u;
 				}
-				value = value * base + digit;
+				value = value * 16u + digit;
 			}
 			return static_cast<T>(negative ? -static_cast<long long>(value) : static_cast<long long>(value));
 		}
@@ -37305,7 +37298,7 @@ CTLL_EXPORT template <auto... Chars> struct string {
 	}
 };
 
-// --- number (raw spelling, converted on demand; JSON schema)
+// --- number (raw spelling, converted on demand; JSON5 spellings)
 
 CTLL_EXPORT template <auto... Chars> struct number {
 	static constexpr kind type = kind::number;
@@ -37326,8 +37319,9 @@ CTLL_EXPORT template <auto... Chars> struct number {
 		if (text.find("Infinity") != std::string_view::npos || text.find("NaN") != std::string_view::npos) {
 			return false;
 		}
-		// hex and octal are integers whatever letters they contain
-		if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'o')) {
+		// hex (0x / 0X, sign included) is an integer whatever letters it has
+		const size_t start = (text[0] == '-' || text[0] == '+') ? 1 : 0;
+		if (text.size() >= start + 2 && text[start] == '0' && (text[start + 1] == 'x' || text[start + 1] == 'X')) {
 			return true;
 		}
 		for (const char c : text) {
@@ -38366,12 +38360,9 @@ CTLL_EXPORT template <typename Traits, size_t N> std::basic_ostream<char, Traits
 // parameters - so the values here are empty structs whose accessors are
 // all constexpr and static.
 //
-// String content is stored as UTF-8 bytes (double-quote escapes,
-// \uXXXX and \UXXXXXXXX included, are decoded during parsing); numbers
-// keep their raw spelling - decimal, hex, octal, float or .inf/.nan -
-// and convert on demand. Mapping keys are strings: JSON's tag
-// resolution is applied to values, not keys, so `get<"true">()` finds
-// the key spelled true.
+// String content is stored as UTF-8 bytes (escapes, including \uXXXX
+// and surrogate pairs, are decoded during parsing); numbers keep their
+// raw spelling - decimal, hex, Infinity/NaN - and convert on demand.
 
 namespace ctjson5 {
 
@@ -38386,9 +38377,9 @@ CTLL_EXPORT enum class kind {
 
 namespace detail {
 
-// the conversion behind number::to and value_view::to: JSON
-// spellings - sign, Infinity/NaN, hex, decimal with
-// fraction and exponent - parsed from their text
+// the conversion behind number::to and value_view::to: JSON5
+// spellings - sign, Infinity/NaN, 0x/0X hex, decimal with fraction
+// and exponent - parsed from their text
 template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept {
 		size_t i = 0;
 		bool negative = false;
@@ -38408,9 +38399,8 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				                : std::numeric_limits<T>::infinity();
 			}
 		}
-		// hex and octal integers
-		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'o')) {
-			const unsigned base = text[i + 1] == 'x' ? 16u : 8u;
+		// hexadecimal (JSON5): 0x / 0X followed by hex digits
+		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'X')) {
 			unsigned long long value = 0;
 			for (size_t k = i + 2; k < text.size(); ++k) {
 				const char c = text[k];
@@ -38422,7 +38412,7 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				} else {
 					digit = static_cast<unsigned>(c - 'A') + 10u;
 				}
-				value = value * base + digit;
+				value = value * 16u + digit;
 			}
 			return static_cast<T>(negative ? -static_cast<long long>(value) : static_cast<long long>(value));
 		}
@@ -38511,7 +38501,7 @@ CTLL_EXPORT template <auto... Chars> struct string {
 	}
 };
 
-// --- number (raw spelling, converted on demand; JSON schema)
+// --- number (raw spelling, converted on demand; JSON5 spellings)
 
 CTLL_EXPORT template <auto... Chars> struct number {
 	static constexpr kind type = kind::number;
@@ -38532,8 +38522,9 @@ CTLL_EXPORT template <auto... Chars> struct number {
 		if (text.find("Infinity") != std::string_view::npos || text.find("NaN") != std::string_view::npos) {
 			return false;
 		}
-		// hex and octal are integers whatever letters they contain
-		if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'o')) {
+		// hex (0x / 0X, sign included) is an integer whatever letters it has
+		const size_t start = (text[0] == '-' || text[0] == '+') ? 1 : 0;
+		if (text.size() >= start + 2 && text[start] == '0' && (text[start + 1] == 'x' || text[start + 1] == 'X')) {
 			return true;
 		}
 		for (const char c : text) {
@@ -39515,12 +39506,9 @@ CTLL_EXPORT template <typename Traits, size_t N> std::basic_ostream<char, Traits
 // parameters - so the values here are empty structs whose accessors are
 // all constexpr and static.
 //
-// String content is stored as UTF-8 bytes (double-quote escapes,
-// \uXXXX and \UXXXXXXXX included, are decoded during parsing); numbers
-// keep their raw spelling - decimal, hex, octal, float or .inf/.nan -
-// and convert on demand. Mapping keys are strings: JSON's tag
-// resolution is applied to values, not keys, so `get<"true">()` finds
-// the key spelled true.
+// String content is stored as UTF-8 bytes (escapes, including \uXXXX
+// and surrogate pairs, are decoded during parsing); numbers keep their
+// raw spelling - decimal, hex, Infinity/NaN - and convert on demand.
 
 namespace ctjson5 {
 
@@ -39535,9 +39523,9 @@ CTLL_EXPORT enum class kind {
 
 namespace detail {
 
-// the conversion behind number::to and value_view::to: JSON
-// spellings - sign, Infinity/NaN, hex, decimal with
-// fraction and exponent - parsed from their text
+// the conversion behind number::to and value_view::to: JSON5
+// spellings - sign, Infinity/NaN, 0x/0X hex, decimal with fraction
+// and exponent - parsed from their text
 template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept {
 		size_t i = 0;
 		bool negative = false;
@@ -39557,9 +39545,8 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				                : std::numeric_limits<T>::infinity();
 			}
 		}
-		// hex and octal integers
-		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'o')) {
-			const unsigned base = text[i + 1] == 'x' ? 16u : 8u;
+		// hexadecimal (JSON5): 0x / 0X followed by hex digits
+		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'X')) {
 			unsigned long long value = 0;
 			for (size_t k = i + 2; k < text.size(); ++k) {
 				const char c = text[k];
@@ -39571,7 +39558,7 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				} else {
 					digit = static_cast<unsigned>(c - 'A') + 10u;
 				}
-				value = value * base + digit;
+				value = value * 16u + digit;
 			}
 			return static_cast<T>(negative ? -static_cast<long long>(value) : static_cast<long long>(value));
 		}
@@ -39660,7 +39647,7 @@ CTLL_EXPORT template <auto... Chars> struct string {
 	}
 };
 
-// --- number (raw spelling, converted on demand; JSON schema)
+// --- number (raw spelling, converted on demand; JSON5 spellings)
 
 CTLL_EXPORT template <auto... Chars> struct number {
 	static constexpr kind type = kind::number;
@@ -39681,8 +39668,9 @@ CTLL_EXPORT template <auto... Chars> struct number {
 		if (text.find("Infinity") != std::string_view::npos || text.find("NaN") != std::string_view::npos) {
 			return false;
 		}
-		// hex and octal are integers whatever letters they contain
-		if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'o')) {
+		// hex (0x / 0X, sign included) is an integer whatever letters it has
+		const size_t start = (text[0] == '-' || text[0] == '+') ? 1 : 0;
+		if (text.size() >= start + 2 && text[start] == '0' && (text[start + 1] == 'x' || text[start + 1] == 'X')) {
 			return true;
 		}
 		for (const char c : text) {
@@ -40498,12 +40486,9 @@ CTLL_EXPORT template <typename Traits, size_t N> std::basic_ostream<char, Traits
 // parameters - so the values here are empty structs whose accessors are
 // all constexpr and static.
 //
-// String content is stored as UTF-8 bytes (double-quote escapes,
-// \uXXXX and \UXXXXXXXX included, are decoded during parsing); numbers
-// keep their raw spelling - decimal, hex, octal, float or .inf/.nan -
-// and convert on demand. Mapping keys are strings: JSON's tag
-// resolution is applied to values, not keys, so `get<"true">()` finds
-// the key spelled true.
+// String content is stored as UTF-8 bytes (escapes, including \uXXXX
+// and surrogate pairs, are decoded during parsing); numbers keep their
+// raw spelling - decimal, hex, Infinity/NaN - and convert on demand.
 
 namespace ctjson5 {
 
@@ -40518,9 +40503,9 @@ CTLL_EXPORT enum class kind {
 
 namespace detail {
 
-// the conversion behind number::to and value_view::to: JSON
-// spellings - sign, Infinity/NaN, hex, decimal with
-// fraction and exponent - parsed from their text
+// the conversion behind number::to and value_view::to: JSON5
+// spellings - sign, Infinity/NaN, 0x/0X hex, decimal with fraction
+// and exponent - parsed from their text
 template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept {
 		size_t i = 0;
 		bool negative = false;
@@ -40540,9 +40525,8 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				                : std::numeric_limits<T>::infinity();
 			}
 		}
-		// hex and octal integers
-		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'o')) {
-			const unsigned base = text[i + 1] == 'x' ? 16u : 8u;
+		// hexadecimal (JSON5): 0x / 0X followed by hex digits
+		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'X')) {
 			unsigned long long value = 0;
 			for (size_t k = i + 2; k < text.size(); ++k) {
 				const char c = text[k];
@@ -40554,7 +40538,7 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				} else {
 					digit = static_cast<unsigned>(c - 'A') + 10u;
 				}
-				value = value * base + digit;
+				value = value * 16u + digit;
 			}
 			return static_cast<T>(negative ? -static_cast<long long>(value) : static_cast<long long>(value));
 		}
@@ -40643,7 +40627,7 @@ CTLL_EXPORT template <auto... Chars> struct string {
 	}
 };
 
-// --- number (raw spelling, converted on demand; JSON schema)
+// --- number (raw spelling, converted on demand; JSON5 spellings)
 
 CTLL_EXPORT template <auto... Chars> struct number {
 	static constexpr kind type = kind::number;
@@ -40664,8 +40648,9 @@ CTLL_EXPORT template <auto... Chars> struct number {
 		if (text.find("Infinity") != std::string_view::npos || text.find("NaN") != std::string_view::npos) {
 			return false;
 		}
-		// hex and octal are integers whatever letters they contain
-		if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'o')) {
+		// hex (0x / 0X, sign included) is an integer whatever letters it has
+		const size_t start = (text[0] == '-' || text[0] == '+') ? 1 : 0;
+		if (text.size() >= start + 2 && text[start] == '0' && (text[start + 1] == 'x' || text[start + 1] == 'X')) {
 			return true;
 		}
 		for (const char c : text) {
@@ -41742,12 +41727,9 @@ CTLL_EXPORT template <typename Traits, size_t N> std::basic_ostream<char, Traits
 // parameters - so the values here are empty structs whose accessors are
 // all constexpr and static.
 //
-// String content is stored as UTF-8 bytes (double-quote escapes,
-// \uXXXX and \UXXXXXXXX included, are decoded during parsing); numbers
-// keep their raw spelling - decimal, hex, octal, float or .inf/.nan -
-// and convert on demand. Mapping keys are strings: JSON's tag
-// resolution is applied to values, not keys, so `get<"true">()` finds
-// the key spelled true.
+// String content is stored as UTF-8 bytes (escapes, including \uXXXX
+// and surrogate pairs, are decoded during parsing); numbers keep their
+// raw spelling - decimal, hex, Infinity/NaN - and convert on demand.
 
 namespace ctjson5 {
 
@@ -41762,9 +41744,9 @@ CTLL_EXPORT enum class kind {
 
 namespace detail {
 
-// the conversion behind number::to and value_view::to: JSON
-// spellings - sign, Infinity/NaN, hex, decimal with
-// fraction and exponent - parsed from their text
+// the conversion behind number::to and value_view::to: JSON5
+// spellings - sign, Infinity/NaN, 0x/0X hex, decimal with fraction
+// and exponent - parsed from their text
 template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept {
 		size_t i = 0;
 		bool negative = false;
@@ -41784,9 +41766,8 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				                : std::numeric_limits<T>::infinity();
 			}
 		}
-		// hex and octal integers
-		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'o')) {
-			const unsigned base = text[i + 1] == 'x' ? 16u : 8u;
+		// hexadecimal (JSON5): 0x / 0X followed by hex digits
+		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'X')) {
 			unsigned long long value = 0;
 			for (size_t k = i + 2; k < text.size(); ++k) {
 				const char c = text[k];
@@ -41798,7 +41779,7 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				} else {
 					digit = static_cast<unsigned>(c - 'A') + 10u;
 				}
-				value = value * base + digit;
+				value = value * 16u + digit;
 			}
 			return static_cast<T>(negative ? -static_cast<long long>(value) : static_cast<long long>(value));
 		}
@@ -41887,7 +41868,7 @@ CTLL_EXPORT template <auto... Chars> struct string {
 	}
 };
 
-// --- number (raw spelling, converted on demand; JSON schema)
+// --- number (raw spelling, converted on demand; JSON5 spellings)
 
 CTLL_EXPORT template <auto... Chars> struct number {
 	static constexpr kind type = kind::number;
@@ -41908,8 +41889,9 @@ CTLL_EXPORT template <auto... Chars> struct number {
 		if (text.find("Infinity") != std::string_view::npos || text.find("NaN") != std::string_view::npos) {
 			return false;
 		}
-		// hex and octal are integers whatever letters they contain
-		if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'o')) {
+		// hex (0x / 0X, sign included) is an integer whatever letters it has
+		const size_t start = (text[0] == '-' || text[0] == '+') ? 1 : 0;
+		if (text.size() >= start + 2 && text[start] == '0' && (text[start + 1] == 'x' || text[start + 1] == 'X')) {
 			return true;
 		}
 		for (const char c : text) {
@@ -43461,12 +43443,9 @@ CTLL_EXPORT template <typename Traits, size_t N> std::basic_ostream<char, Traits
 // parameters - so the values here are empty structs whose accessors are
 // all constexpr and static.
 //
-// String content is stored as UTF-8 bytes (double-quote escapes,
-// \uXXXX and \UXXXXXXXX included, are decoded during parsing); numbers
-// keep their raw spelling - decimal, hex, octal, float or .inf/.nan -
-// and convert on demand. Mapping keys are strings: JSON's tag
-// resolution is applied to values, not keys, so `get<"true">()` finds
-// the key spelled true.
+// String content is stored as UTF-8 bytes (escapes, including \uXXXX
+// and surrogate pairs, are decoded during parsing); numbers keep their
+// raw spelling - decimal, hex, Infinity/NaN - and convert on demand.
 
 namespace ctjson5 {
 
@@ -43481,9 +43460,9 @@ CTLL_EXPORT enum class kind {
 
 namespace detail {
 
-// the conversion behind number::to and value_view::to: JSON
-// spellings - sign, Infinity/NaN, hex, decimal with
-// fraction and exponent - parsed from their text
+// the conversion behind number::to and value_view::to: JSON5
+// spellings - sign, Infinity/NaN, 0x/0X hex, decimal with fraction
+// and exponent - parsed from their text
 template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept {
 		size_t i = 0;
 		bool negative = false;
@@ -43503,9 +43482,8 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				                : std::numeric_limits<T>::infinity();
 			}
 		}
-		// hex and octal integers
-		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'o')) {
-			const unsigned base = text[i + 1] == 'x' ? 16u : 8u;
+		// hexadecimal (JSON5): 0x / 0X followed by hex digits
+		if (i + 1 < text.size() && text[i] == '0' && (text[i + 1] == 'x' || text[i + 1] == 'X')) {
 			unsigned long long value = 0;
 			for (size_t k = i + 2; k < text.size(); ++k) {
 				const char c = text[k];
@@ -43517,7 +43495,7 @@ template <typename T> constexpr T to_arithmetic(std::string_view text) noexcept 
 				} else {
 					digit = static_cast<unsigned>(c - 'A') + 10u;
 				}
-				value = value * base + digit;
+				value = value * 16u + digit;
 			}
 			return static_cast<T>(negative ? -static_cast<long long>(value) : static_cast<long long>(value));
 		}
@@ -43606,7 +43584,7 @@ CTLL_EXPORT template <auto... Chars> struct string {
 	}
 };
 
-// --- number (raw spelling, converted on demand; JSON schema)
+// --- number (raw spelling, converted on demand; JSON5 spellings)
 
 CTLL_EXPORT template <auto... Chars> struct number {
 	static constexpr kind type = kind::number;
@@ -43627,8 +43605,9 @@ CTLL_EXPORT template <auto... Chars> struct number {
 		if (text.find("Infinity") != std::string_view::npos || text.find("NaN") != std::string_view::npos) {
 			return false;
 		}
-		// hex and octal are integers whatever letters they contain
-		if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'o')) {
+		// hex (0x / 0X, sign included) is an integer whatever letters it has
+		const size_t start = (text[0] == '-' || text[0] == '+') ? 1 : 0;
+		if (text.size() >= start + 2 && text[start] == '0' && (text[start + 1] == 'x' || text[start + 1] == 'X')) {
 			return true;
 		}
 		for (const char c : text) {

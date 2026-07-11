@@ -62,6 +62,11 @@ static_assert(j5.get<"sq key">().size() == 2);
 static_assert(ctjson5::parse<"0xFF">().to<int>() == 255);
 static_assert(ctjson5::parse<"-0x1f">().to<int>() == -31);
 static_assert(ctjson5::parse<"0xFF">().is_integer());
+// 0X, the uppercase prefix (regression: to() once matched only 0x)
+static_assert(ctjson5::parse<"0XFF">().to<int>() == 255);
+static_assert(ctjson5::parse<"0XFF">().to<double>() == 255.0);
+static_assert(ctjson5::parse<"-0X1E">().to<int>() == -30);
+static_assert(ctjson5::parse<"-0X1E">().is_integer());
 static_assert(ctjson5::parse<".5">().to<double>() == 0.5);
 static_assert(ctjson5::parse<"5.">().to<double>() == 5.0);
 static_assert(ctjson5::parse<"+42">().to<int>() == 42);
