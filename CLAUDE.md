@@ -35,7 +35,7 @@ Other CMake knobs: `CTJSON5_PCH`, `CTJSON5_MODULE`, `CTJSON5_BUILD_TESTS`,
 - `include/ctjson5/views.hpp` — `value_view` / `member_view` (uniform records for runtime `[]` and range-for).
 - `include/ctjson5/dumps.hpp` — Python-style `dumps`/`dump`/`loads` + constexpr Dragon4 float formatting.
 - `include/ctjson5/load.hpp` — runtime `loads(text)`/`load(stream)` -> `optional<value>`, `load_error` with line/column.
-- `include/ctlark.hpp` + `include/ctlark/`, `include/ctll.hpp` + `include/ctll/` — **VENDORED** (see Gotchas).
+- `external/compile-time-lark/` — ctlark + ctll git **SUBMODULE** (see Gotchas).
 - `ctjson5.cppm` — named C++ module (`import std;`, experimental).
 - `tests/` — cxx17, document, dumps, load. `examples/` — runnable tours.
 
@@ -50,7 +50,7 @@ Other CMake knobs: `CTJSON5_PCH`, `CTJSON5_MODULE`, `CTJSON5_BUILD_TESTS`,
 - Prefer ripgrep (`rg`) over grep.
 
 ## GOTCHAS (load-bearing)
-- **Vendored, do NOT edit directly**: `include/ctlark*` and `include/ctll*` are BYTE-IDENTICAL copies from **compile-time-lark (the source of truth)**. Edit the core THERE, then resync: `../compile-time-lark/tools/sync-vendor.sh`, verify with `diff -rq`, and regenerate the single-header here.
+- **ctlark and ctll are a git SUBMODULE, never edit here**: `external/compile-time-lark` (the source of truth) — run `git submodule update --init` once after cloning; bump by checking out a new commit inside the submodule and committing the gitlink, then regenerate the single-header here. The build adds `<sub>/include` AND `<sub>/include/ctlark` / `<sub>/include/ctll` to the include path so the headers' relative `"../ctlark.hpp"`-style includes resolve via the quoted-include fallback; the CMake install flattens everything back to include/{ctjson5,ctlark,ctll}.
 - **single-header**: `make single-header` amalgamates `include/ctjson5.hpp` via `quom` and prepends `LICENSE` -> `single-header/ctjson5.hpp`. Regenerate after core/header changes.
-- **Grammar regen (Tablewright)**: `make regrammar` rebuilds `include/ctlark/lark.hpp` (ctlark's *grammar-of-grammars* CTLL table) from `include/ctlark/lark.gram` via the `tablewright` tool (`--generator=cpp_ctll_v2`; needs python3 + the `lark` package). This is a **vendored** file — regenerate upstream in compile-time-lark, not here. The JSON5 grammar itself (`grammar.hpp`) is plain data and needs no regen. Generated header contract: guard `CTLARK__LARK__HPP`, namespace `ctlark`, grammar name `lark_grammar`. Tablewright derives from Desatomat.
+- **Grammar regen (Tablewright)**: `ctlark/lark.hpp` (ctlark's *grammar-of-grammars* CTLL table, generated from `lark.gram` by the `tablewright` tool) lives in the submodule — regenerate upstream in compile-time-lark (`make regrammar` there), never inside `external/`. The JSON5 grammar itself (`grammar.hpp`) is plain data and needs no regen. Generated header contract: guard `CTLARK__LARK__HPP`, namespace `ctlark`, grammar name `lark_grammar`. Tablewright derives from Desatomat.
 - **Attribution**: CTLL is Hana Dusíková's (CTRE, via the notre fork); the Lark grammar language is lark-parser's (Erez Shinan). Preserve `NOTICE`/`LICENSE` (Apache-2.0 w/ LLVM Exceptions).

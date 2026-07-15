@@ -6,7 +6,8 @@ foreach(source ${example-sources})
   if(example STREQUAL "cxx17-syntax")
     # demonstrates the C++17 API, so it must not inherit the interface
     # target's cxx_std requirement
-    target_include_directories(ctjson5-example-${example} PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_include_directories(ctjson5-example-${example} PRIVATE
+      "${PROJECT_SOURCE_DIR}/include" ${CTJSON5_SUBMODULE_INCLUDE_DIRS})
     set_target_properties(ctjson5-example-${example} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     if(CTJSON5_CONSTEXPR_LIMITS)
       target_compile_options(ctjson5-example-${example} PRIVATE ${CTJSON5_CONSTEXPR_OPTIONS})
