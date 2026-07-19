@@ -178,12 +178,17 @@ What JSON5 adds over JSON, all supported here at compile time and at
 runtime:
 
 * `//` line and `/* block */` comments
+
 * unquoted object keys (`{key: 1}`) and single-quoted strings/keys
+
 * trailing commas in objects and arrays
+
 * hexadecimal numbers (`0x2A`), leading/trailing decimal points (`.5`,
   `5.`), an explicit plus sign, and `Infinity`/`NaN` with either sign
+
 * string escapes `\'`, `\v`, `\0`, `\xHH`, self-escapes (`\a` is
   `a`), and line continuations (backslash before LF, CR, CRLF, LS, PS)
+
 * extra whitespace: `\v`, `\f`, NBSP, BOM, LS and PS
 
 Details:
@@ -191,13 +196,16 @@ Details:
 * String content is stored as UTF-8 bytes. All escapes are decoded at
   parse time, including `\uXXXX` and UTF-16 surrogate pairs; lone
   surrogates are rejected.
+
 * Numbers keep their raw spelling — `0x2A` stays hexadecimal through
   `serialize` — and `to<T>()` converts on demand (integral conversions
   truncate fractions, like a cast; `is_integer()` is true for hex).
+
 * Still rejected, per the spec: leading zeros, digits after a
   backslash, a lone `/`, unterminated block comments, raw line
   terminators inside strings, and anything after the root value.
   Duplicate keys are accepted; `get` finds the first.
+
 * Documented divergences from the spec: unquoted keys are ASCII
   identifiers (`[A-Za-z_$][A-Za-z0-9_$]*`; full ECMAScript identifiers
   are not recognized), whitespace outside the list above (other `Zs`
@@ -279,7 +287,6 @@ resolve, and the CMake install flattens everything back to
 `include/{ctjson5,ctlark,ctll}`. The only generated parse table is
 ctlark's own `lark.hpp` (the grammar of the Lark grammar language);
 regenerate it upstream in compile-time-lark, never inside `external/`.
-
 
 ## Building and integrating
 
